@@ -1,6 +1,8 @@
-# es-money
+# subunit-money
 
-A TypeScript-first value object for dealing with money and currencies.
+A TypeScript-first value object for dealing with money and currencies. Uses currency subunits (cents, pence, etc.) internally via BigInt for precision-safe calculations.
+
+> **Note**: This is a complete TypeScript rewrite of [`cbrunnkvist/es-money`](https://github.com/cbrunnkvist/es-money), modernized with BigInt internals, enhanced type safety, and currency conversion support.
 
 ## Features
 
@@ -14,13 +16,13 @@ A TypeScript-first value object for dealing with money and currencies.
 ## Installation
 
 ```bash
-npm install es-money
+npm install @cbrunnkvist/subunit-money
 ```
 
 ## Basic Usage
 
 ```typescript
-import { Money } from 'es-money'
+import { Money } from '@cbrunnkvist/subunit-money'
 
 const price = new Money('USD', '19.99')
 const tax = price.multiply(0.0825)
@@ -106,7 +108,7 @@ money.toSubunits() // 9999n (BigInt)
 For cross-currency operations, use `ExchangeRateService` and `MoneyConverter`:
 
 ```typescript
-import { Money, ExchangeRateService, MoneyConverter } from 'es-money'
+import { Money, ExchangeRateService, MoneyConverter } from '@cbrunnkvist/subunit-money'
 
 // Set up exchange rates
 const rates = new ExchangeRateService()
@@ -153,7 +155,7 @@ const discrepancies = rates.getDiscrepancies(0.01) // 1% tolerance
 The module includes 120+ currencies. Add custom ones:
 
 ```typescript
-import { registerCurrency, Money } from 'es-money'
+import { registerCurrency, Money } from '@cbrunnkvist/subunit-money'
 
 // Add cryptocurrency
 registerCurrency('BTC', { decimalDigits: 8 })
@@ -175,7 +177,7 @@ import {
   SubunitError,          // Too many decimal places
   AmountError,           // Invalid amount format
   ExchangeRateError      // Missing exchange rate
-} from 'es-money'
+} from '@cbrunnkvist/subunit-money'
 
 try {
   const usd = new Money('USD', '100.00')

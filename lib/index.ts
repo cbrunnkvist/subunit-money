@@ -1,8 +1,8 @@
 /**
- * es-money - A type-safe value object for monetary amounts
+ * subunit-money - A type-safe value object for monetary amounts
  *
  * @example
- * import { Money, ExchangeRateService, MoneyConverter } from 'es-money'
+ * import { Money, ExchangeRateService, MoneyConverter } from '@cbrunnkvist/subunit-money'
  *
  * // Basic usage
  * const price = new Money('USD', '19.99')
