@@ -4,6 +4,20 @@ A TypeScript-first value object for dealing with money and currencies. Uses curr
 
 > **Note**: This is a complete TypeScript rewrite of [`cbrunnkvist/es-money`](https://github.com/cbrunnkvist/es-money), modernized with BigInt internals, enhanced type safety, and currency conversion support.
 
+## Basic Usage
+
+```typescript
+import { Money } from '@cbrunnkvist/subunit-money'
+
+const price = new Money('USD', '19.99')
+const tax = price.multiply(0.0825)
+const total = price.add(tax)
+
+console.log(total.toString()) // "21.63 USD"
+console.log(total.amount)     // "21.63" (string, safe for JSON/DB)
+console.log(total.toNumber()) // 21.63 (number, for calculations)
+```
+
 ## Why Model Money as a Value Object?
 
 Naive JavaScript math fails for monetary values in subtle but critical ways:
@@ -29,20 +43,6 @@ This library uses BigInt internally to store currency in subunits (cents, satosh
 
 ```bash
 npm install @cbrunnkvist/subunit-money
-```
-
-## Basic Usage
-
-```typescript
-import { Money } from '@cbrunnkvist/subunit-money'
-
-const price = new Money('USD', '19.99')
-const tax = price.multiply(0.0825)
-const total = price.add(tax)
-
-console.log(total.toString()) // "21.63 USD"
-console.log(total.amount)     // "21.63" (string, safe for JSON/DB)
-console.log(total.toNumber()) // 21.63 (number, for calculations)
 ```
 
 ## API Reference
