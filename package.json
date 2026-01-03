@@ -14,7 +14,8 @@
   },
   "files": [
     "dist",
-    "currencymap.json"
+    "currencymap.json",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc",
