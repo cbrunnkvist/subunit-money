@@ -4,6 +4,18 @@ A TypeScript-first value object for dealing with money and currencies. Uses curr
 
 > **Note**: This is a complete TypeScript rewrite of [`cbrunnkvist/es-money`](https://github.com/cbrunnkvist/es-money), modernized with BigInt internals, enhanced type safety, and currency conversion support.
 
+## Why Model Money as a Value Object?
+
+Naive JavaScript math fails for monetary values in subtle but critical ways:
+
+**Floating-Point Errors**: JavaScript represents decimals in binary, so values like 19.99 are approximations. Operations on approximations compound the error.
+
+**Deferred Rounding**: The classic example is `0.1 + 0.2 === 0.3` returning `false`. But in accounting, deferred rounding is worse—you might accumulate errors silently across many transactions.
+
+**The Split Penny Problem**: Imagine charging tax ($1.649175) on 10 items. If you round per-item (legally required on receipts), that's $1.65 × 10 = $16.50. But if you defer rounding, 10 × $1.649175 = $16.49. That missing penny is a real problem. Money objects round immediately after multiplication to prevent this.
+
+This library uses BigInt internally to store currency in subunits (cents, satoshis, etc.), making all arithmetic exact.
+
 ## Features
 
 - **Precision-safe**: BigInt internals prevent floating-point errors (`0.1 + 0.2` works correctly)
