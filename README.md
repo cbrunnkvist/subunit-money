@@ -1,6 +1,6 @@
 # subunit-money
 
-A TypeScript-first value object for dealing with money and currencies. Uses currency subunits (cents, pence, etc.) internally via BigInt for precision-safe calculations.
+A _TypeScript-first_ [value object](https://martinfowler.com/bliki/ValueObject.html) for dealing with money and currencies. Uses _currency subunits_ (cents, pence, etc.) internally, via BigInt, for precision-safe calculations.
 
 > **Note**: This is a complete TypeScript rewrite of [`cbrunnkvist/es-money`](https://github.com/cbrunnkvist/es-money), modernized with BigInt internals, enhanced type safety, and currency conversion support.
 
