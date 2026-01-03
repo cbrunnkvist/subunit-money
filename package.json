@@ -1,5 +1,5 @@
 {
-  "name": "@cbrunnkvist/subunit-money",
+  "name": "subunit-money",
   "version": "2.0.0",
   "description": "A type-safe value object for monetary amounts with currency conversion support",
   "main": "dist/index.js",
