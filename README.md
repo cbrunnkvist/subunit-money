@@ -144,10 +144,8 @@ converter.sum(amounts, 'USD') // Total in USD
 rates.setRate('USD', 'EUR', '0.92')
 rates.getRate('EUR', 'USD') // Returns ~1.087 automatically
 
-// Detect rate discrepancies
-rates.setRate('EUR', 'USD', '1.10') // Slightly off from inverse
-const discrepancies = rates.getDiscrepancies(0.01) // 1% tolerance
-// Returns conflicts for manual review
+// You can disable auto-inverse if you want to set both directions explicitly
+rates.setRate('EUR', 'USD', '1.10', undefined, false) // Won't auto-create USD→EUR
 ```
 
 ## Custom Currencies
