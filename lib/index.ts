@@ -42,6 +42,13 @@ export {
 } from './currency.js'
 
 // Auto-load default currencies
+// The currencymap.json file is the official ISO 4217 currency list (List One) as of 2026-01-01,
+// sourced from SIX Financial Information AG (the ISO 4217 Maintenance Agency).
+// To regenerate: Download list-one.xml from https://www.six-group.com/en/products-services/financial-information/data-standards.html
+// Then parse with: for each <CcyNtry>, extract <Ccy> (code) and <CcyMnrUnts> (decimal places),
+// and output as JSON object: { "CODE": { "decimal_digits": N }, ... }
+// Note: This excludes historical currencies, supranational funds, and precious metals,
+// keeping only active national and regional currencies for practical use.
 import { loadCurrencyMap } from './currency.js'
 import currencyMap from '../currencymap.json'
 loadCurrencyMap(currencyMap as Record<string, { decimal_digits: number }>)
