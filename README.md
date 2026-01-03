@@ -28,9 +28,9 @@ const price = new Money('USD', '19.99')
 const tax = price.multiply(0.0825)
 const total = price.add(tax)
 
-console.log(total.toString()) // "21.64 USD"
-console.log(total.amount)     // "21.64" (string, safe for JSON/DB)
-console.log(total.toNumber()) // 21.64 (number, for calculations)
+console.log(total.toString()) // "21.63 USD"
+console.log(total.amount)     // "21.63" (string, safe for JSON/DB)
+console.log(total.toNumber()) // 21.63 (number, for calculations)
 ```
 
 ## API Reference
@@ -45,7 +45,7 @@ new Money('USD', '100.00')
 new Money('USD', 100)
 
 // From subunits (e.g., cents from database)
-Money.fromSubunits('USD', 10000n) // $100.00
+Money.fromSubunits(10000n, 'USD') // $100.00
 
 // Zero amount
 Money.zero('EUR') // 0.00 EUR
@@ -75,7 +75,7 @@ a.allocate([1, 1, 1]) // [33.34 USD, 33.33 USD, 33.33 USD]
 const a = new Money('USD', '100.00')
 const b = new Money('USD', '50.00')
 
-a.equals(b)      // false
+a.equalTo(b)     // false
 a.greaterThan(b) // true
 a.lessThan(b)    // false
 a.isZero()       // false
@@ -156,11 +156,11 @@ The module includes 120+ currencies. Add custom ones:
 import { registerCurrency, Money } from '@cbrunnkvist/subunit-money'
 
 // Add cryptocurrency
-registerCurrency('BTC', { decimalDigits: 8 })
+registerCurrency('BTC', 8)
 const bitcoin = new Money('BTC', '0.00010000')
 
 // Add custom token
-registerCurrency('POINTS', { decimalDigits: 0 })
+registerCurrency('POINTS', 0)
 const points = new Money('POINTS', '500')
 ```
 
@@ -183,7 +183,7 @@ try {
   usd.add(eur) // Throws CurrencyMismatchError
 } catch (e) {
   if (e instanceof CurrencyMismatchError) {
-    console.log(`Cannot mix ${e.currencyA} and ${e.currencyB}`)
+    console.log(`Cannot mix ${e.fromCurrency} and ${e.toCurrency}`)
   }
 }
 ```
@@ -205,7 +205,7 @@ const money = new Money('USD', '0.10')
 // Safe: survives JSON round-trip
 const json = JSON.stringify(money)
 const restored = Money.fromObject(JSON.parse(json))
-restored.equals(money) // true
+restored.equalTo(money) // true
 
 // Safe: database storage
 db.insert({ price: money.amount }) // "0.10"
