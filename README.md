@@ -7,7 +7,7 @@ A _TypeScript-first_ [value object](https://martinfowler.com/bliki/ValueObject.h
 ## Basic Usage
 
 ```typescript
-import { Money } from '@cbrunnkvist/subunit-money'
+import { Money } from 'subunit-money'
 
 const price = new Money('USD', '19.99')
 const tax = price.multiply(0.0825)
@@ -42,7 +42,7 @@ This library uses BigInt internally to store currency in subunits (cents, satosh
 ## Installation
 
 ```bash
-npm install @cbrunnkvist/subunit-money
+npm install subunit-money
 ```
 
 ## API Reference
@@ -120,7 +120,7 @@ money.toSubunits() // 9999n (BigInt)
 For cross-currency operations, use `ExchangeRateService` and `MoneyConverter`:
 
 ```typescript
-import { Money, ExchangeRateService, MoneyConverter } from '@cbrunnkvist/subunit-money'
+import { Money, ExchangeRateService, MoneyConverter } from 'subunit-money'
 
 // Set up exchange rates
 const rates = new ExchangeRateService()
@@ -165,7 +165,7 @@ rates.setRate('EUR', 'USD', '1.10', undefined, false) // Won't auto-create USDâ†
 The module includes 120+ currencies. Add custom ones:
 
 ```typescript
-import { registerCurrency, Money } from '@cbrunnkvist/subunit-money'
+import { registerCurrency, Money } from 'subunit-money'
 
 // Add cryptocurrency
 registerCurrency('BTC', 8)
@@ -187,7 +187,7 @@ import {
   SubunitError,          // Too many decimal places
   AmountError,           // Invalid amount format
   ExchangeRateError      // Missing exchange rate
-} from '@cbrunnkvist/subunit-money'
+} from 'subunit-money'
 
 try {
   const usd = new Money('USD', '100.00')
