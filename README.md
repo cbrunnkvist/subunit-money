@@ -28,6 +28,8 @@ Naive JavaScript math fails for monetary values in subtle but critical ways:
 
 **The Split Penny Problem**: Imagine charging tax ($1.649175) on 10 items. If you round per-item (legally required on receipts), that's $1.65 × 10 = $16.50. But if you defer rounding, 10 × $1.649175 = $16.49. That missing penny is a real problem. Money objects round immediately after multiplication to prevent this.
 
+**Banker's Rounding**: When a value is exactly halfway (like $0.545), should it round up or down? Simple "round half up" always rounds up, creating systematic bias—over millions of transactions, you're consistently overcharging. This library uses "round half to even" (banker's rounding): $0.545 rounds to $0.54 (4 is even), but $0.555 rounds to $0.56 (5 is odd, round to even 6). This eliminates bias and is the IEEE 754-2008 standard for financial calculations.
+
 This library uses BigInt internally to store currency in subunits (cents, satoshis, etc.), making all arithmetic exact.
 
 ## Features
@@ -205,7 +207,7 @@ try {
 - **Minimal surface area**: A value object should be just a value object
 - **Fail fast**: Errors thrown immediately, not silently propagated
 - **No localization**: Formatting for display is your app's concern
-- **No rounding rules**: Currency-specific rounding is application-specific
+- **Banker's rounding**: Uses IEEE 754-2008 round-half-to-even to eliminate systematic bias
 
 ## Why String Amounts?
 
