@@ -159,7 +159,15 @@ export class Money<C extends string = string> {
 
   /**
    * Multiply by a factor.
-   * Result is rounded using half-up rounding (standard financial rounding).
+   *
+   * DESIGN: Rounds immediately after multiplication using banker's rounding
+   * (round half-to-even). This prevents the "split penny problem" where
+   * line-item rounding differs from deferred rounding:
+   *   Per-item: $1.65 tax × 10 items = $16.50 ✓ (matches receipt)
+   *   Deferred: 10 × $1.649175 = $16.49 ✗ (missing penny)
+   *
+   * For chained calculations without intermediate rounding, perform arithmetic
+   * in Number space first, then create a Money object with the final result.
    */
   multiply(factor: number): Money<C> {
     if (typeof factor !== 'number' || !Number.isFinite(factor)) {
@@ -175,7 +183,9 @@ export class Money<C extends string = string> {
   }
 
   /**
-   * Divide with half-up rounding (standard financial rounding).
+   * Divide with banker's rounding (round half-to-even).
+   * IEEE 754-2008 recommended default rounding mode for financial calculations.
+   * Eliminates systematic bias that half-up rounding introduces.
    */
   static #roundedDivide(numerator: bigint, denominator: bigint): bigint {
     if (denominator === 1n) return numerator
@@ -186,9 +196,19 @@ export class Money<C extends string = string> {
 
     const halfDenominator = denominator / 2n
     const absRemainder = remainder < 0n ? -remainder : remainder
-    if (absRemainder >= halfDenominator) {
+
+    if (absRemainder > halfDenominator) {
       return numerator < 0n ? quotient - 1n : quotient + 1n
     }
+
+    if (absRemainder === halfDenominator) {
+      const isQuotientEven = quotient % 2n === 0n
+      if (isQuotientEven) {
+        return quotient
+      }
+      return numerator < 0n ? quotient - 1n : quotient + 1n
+    }
+
     return quotient
   }
 
