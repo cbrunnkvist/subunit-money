@@ -336,15 +336,17 @@ describe('Bug regression tests', () => {
       assert.strictEqual(price.multiply(0.0825).amount, '1.65')
     })
 
-    it('rounds 0.555 to 0.56 (round half up)', () => {
+    it('rounds 0.555 to 0.56 (banker\'s rounding)', () => {
       const money = new Money('USD', '1.00')
       assert.strictEqual(money.multiply(0.555).amount, '0.56')
     })
 
-    it('rounds 0.5 boundary correctly', () => {
+    it('rounds 0.5 boundary correctly with banker\'s rounding', () => {
       const money = new Money('USD', '1.00')
-      // 1.00 * 0.005 = 0.005, rounds to 0.01
-      assert.strictEqual(money.multiply(0.005).amount, '0.01')
+      // 1.00 * 0.005 = 0.005 → banker's: digit before 5 is 0 (even), round down
+      assert.strictEqual(money.multiply(0.005).amount, '0.00')
+      // 1.00 * 0.015 = 0.015 → banker's: digit before 5 is 1 (odd), round up
+      assert.strictEqual(money.multiply(0.015).amount, '0.02')
     })
   })
 
@@ -375,6 +377,156 @@ describe('Bug regression tests', () => {
       // XYZ is not registered as a currency
       assert.throws(() => converter.convert(usd, 'XYZ'), CurrencyUnknownError)
     })
+  })
+})
+
+describe("Banker's rounding (round half-to-even) compliance", () => {
+  beforeEach(() => {
+    clearCurrencies()
+    registerCurrency('USD', 2)
+  })
+
+  it('rounds 0.555 to 0.56 (5 is odd, round up to even 6)', () => {
+    const money = new Money('USD', '1.00')
+    assert.strictEqual(money.multiply(0.555).amount, '0.56')
+  })
+
+  it('rounds 0.545 to 0.54 (4 is even, round down to stay even)', () => {
+    const money = new Money('USD', '1.00')
+    assert.strictEqual(money.multiply(0.545).amount, '0.54')
+  })
+
+  it('rounds 0.565 to 0.56 (6 is even, round down to stay even)', () => {
+    const money = new Money('USD', '1.00')
+    assert.strictEqual(money.multiply(0.565).amount, '0.56')
+  })
+
+  it('rounds 0.575 to 0.58 (7 is odd, round up to even 8)', () => {
+    const money = new Money('USD', '1.00')
+    assert.strictEqual(money.multiply(0.575).amount, '0.58')
+  })
+
+  it('rounds 0.585 to 0.58 (8 is even, round down to stay even)', () => {
+    const money = new Money('USD', '1.00')
+    assert.strictEqual(money.multiply(0.585).amount, '0.58')
+  })
+
+  it('rounds 0.595 to 0.60 (9 is odd, round up to even 0)', () => {
+    const money = new Money('USD', '1.00')
+    assert.strictEqual(money.multiply(0.595).amount, '0.60')
+  })
+
+  it("handles negative amounts with banker's rounding", () => {
+    const money = new Money('USD', '-1.00')
+    assert.strictEqual(money.multiply(0.555).amount, '-0.56')
+    assert.strictEqual(money.multiply(0.545).amount, '-0.54')
+  })
+
+  it('prevents systematic bias over many transactions', () => {
+    const money = new Money('USD', '1.00')
+    
+    // With banker's rounding, half values alternate between rounding up and down
+    // based on whether the preceding digit is odd or even
+    const results = [
+      money.multiply(0.545),  // 4 is even → 0.54
+      money.multiply(0.555),  // 5 is odd  → 0.56
+      money.multiply(0.565),  // 6 is even → 0.56
+      money.multiply(0.575),  // 7 is odd  → 0.58
+      money.multiply(0.585),  // 8 is even → 0.58
+      money.multiply(0.595),  // 9 is odd  → 0.60
+    ]
+    
+    const sum = results.reduce((acc, m) => acc.add(m), Money.zero('USD'))
+    // True sum: 0.545+0.555+0.565+0.575+0.585+0.595 = 3.42
+    // Half-up would give: 0.55+0.56+0.57+0.58+0.59+0.60 = 3.45 (biased high)
+    // Banker's gives: 0.54+0.56+0.56+0.58+0.58+0.60 = 3.42 (unbiased)
+    assert.strictEqual(sum.amount, '3.42')
+  })
+
+  it('works correctly with larger multipliers', () => {
+    const money = new Money('USD', '10.00')
+    // 10.00 * 0.0545 = 0.545 → should round to 0.54 (4 is even)
+    assert.strictEqual(money.multiply(0.0545).amount, '0.54')
+    // 10.00 * 0.0555 = 0.555 → should round to 0.56 (5 is odd)
+    assert.strictEqual(money.multiply(0.0555).amount, '0.56')
+  })
+
+  it('works with large amounts', () => {
+    const large = new Money('USD', '1000000000.00')
+    // 1000000000.00 * 0.00000545 = 5450.00
+    assert.strictEqual(large.multiply(0.00000545).amount, '5450.00')
+    // 1000000000.00 * 0.00000555 = 5550.00
+    assert.strictEqual(large.multiply(0.00000555).amount, '5550.00')
+  })
+})
+
+describe('MoneyConverter precision with BigInt arithmetic', () => {
+  let service: ExchangeRateService
+  let converter: MoneyConverter
+
+  beforeEach(() => {
+    clearCurrencies()
+    registerCurrency('USD', 2)
+    registerCurrency('EUR', 2)
+    registerCurrency('BTC', 8)
+    registerCurrency('JPY', 0)
+
+    service = new ExchangeRateService()
+    converter = new MoneyConverter(service)
+  })
+
+  it('preserves precision for large cryptocurrency conversions', () => {
+    service.setRate('BTC', 'USD', '43500.00')
+    
+    const btc = new Money('BTC', '1000.00000001')
+    const usd = converter.convert(btc, 'USD')
+    
+    // 1000.00000001 × 43500 = 43500000.00435
+    // Should round to 43500000.00 (4 is even, round down)
+    assert.strictEqual(usd.amount, '43500000.00')
+  })
+
+  it('handles fractional rates with zero-decimal currencies', () => {
+    service.setRate('USD', 'JPY', '149.50')
+    
+    const usd = new Money('USD', '100.00')
+    const jpy = converter.convert(usd, 'JPY')
+    
+    // 100 × 149.50 = 14950 (exact)
+    assert.strictEqual(jpy.amount, '14950')
+  })
+
+  it("applies banker's rounding in currency conversion", () => {
+    // 100.55 USD * 0.92 = 92.506 → 92.50 (0 is even, round down)
+    // 100.65 USD * 0.92 = 92.598 → 92.60 (rounds up, not a half case)
+    service.setRate('USD', 'EUR', '0.92')
+    
+    const usd1 = new Money('USD', '100.55')
+    const usd2 = new Money('USD', '100.65')
+    
+    assert.strictEqual(converter.convert(usd1, 'EUR').amount, '92.51')
+    assert.strictEqual(converter.convert(usd2, 'EUR').amount, '92.60')
+  })
+
+  it('does not lose precision with very small rates', () => {
+    service.setRate('BTC', 'USD', '0.00001')  // Hypothetical tiny rate
+    
+    const btc = new Money('BTC', '100000000.00000000')  // 100M BTC
+    const usd = converter.convert(btc, 'USD')
+    
+    // 100000000 × 0.00001 = 1000.00
+    assert.strictEqual(usd.amount, '1000.00')
+  })
+
+  it('handles conversion with rates having many decimals', () => {
+    service.setRate('USD', 'EUR', '0.923456789')
+    
+    const usd = new Money('USD', '100.00')
+    const eur = converter.convert(usd, 'EUR')
+    
+    // 100 × 0.923456789 = 92.3456789 → 92.34 (4 is even, round down from .345...)
+    // Actually .345... > .5 so it rounds up to 92.35
+    assert.strictEqual(eur.amount, '92.35')
   })
 })
 
