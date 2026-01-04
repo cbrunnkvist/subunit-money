@@ -1,6 +1,6 @@
 {
   "name": "subunit-money",
-  "version": "2.0.3",
+  "version": "2.1.0",
   "description": "A type-safe value object for monetary amounts with currency conversion support",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
