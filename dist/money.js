@@ -103,7 +103,15 @@ class Money {
     }
     /**
      * Multiply by a factor.
-     * Result is rounded using half-up rounding (standard financial rounding).
+     *
+     * DESIGN: Rounds immediately after multiplication using banker's rounding
+     * (round half-to-even). This prevents the "split penny problem" where
+     * line-item rounding differs from deferred rounding:
+     *   Per-item: $1.65 tax × 10 items = $16.50 ✓ (matches receipt)
+     *   Deferred: 10 × $1.649175 = $16.49 ✗ (missing penny)
+     *
+     * For chained calculations without intermediate rounding, perform arithmetic
+     * in Number space first, then create a Money object with the final result.
      */
     multiply(factor) {
         if (typeof factor !== 'number' || !Number.isFinite(factor)) {
@@ -334,7 +342,14 @@ _a = Money, _Money_value = new WeakMap(), _Money_currencyDef = new WeakMap(), _M
         return quotient;
     const halfDenominator = denominator / 2n;
     const absRemainder = remainder < 0n ? -remainder : remainder;
-    if (absRemainder >= halfDenominator) {
+    if (absRemainder > halfDenominator) {
+        return numerator < 0n ? quotient - 1n : quotient + 1n;
+    }
+    if (absRemainder === halfDenominator) {
+        const isQuotientEven = quotient % 2n === 0n;
+        if (isQuotientEven) {
+            return quotient;
+        }
         return numerator < 0n ? quotient - 1n : quotient + 1n;
     }
     return quotient;

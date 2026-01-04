@@ -18,7 +18,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
     return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
-var _MoneyConverter_rateService;
+var _MoneyConverter_instances, _MoneyConverter_rateService, _MoneyConverter_bankersRound;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MoneyConverter = void 0;
 const money_js_1 = require("./money.js");
@@ -37,6 +37,7 @@ const currency_js_1 = require("./currency.js");
  */
 class MoneyConverter {
     constructor(rateService) {
+        _MoneyConverter_instances.add(this);
         _MoneyConverter_rateService.set(this, void 0);
         __classPrivateFieldSet(this, _MoneyConverter_rateService, rateService, "f");
     }
@@ -60,9 +61,18 @@ class MoneyConverter {
         if (!rate) {
             throw new errors_js_1.ExchangeRateError(money.currency, targetCurrency);
         }
-        const convertedAmount = Number(money.amount) * Number(rate.rate);
-        const rounded = convertedAmount.toFixed(currencyDef.decimalDigits);
-        return new money_js_1.Money(targetCurrency, rounded);
+        const sourceCurrencyDef = (0, currency_js_1.getCurrency)(money.currency);
+        const sourceSubunits = money.toSubunits();
+        const sourceMultiplier = 10n ** BigInt(sourceCurrencyDef.decimalDigits);
+        const targetMultiplier = 10n ** BigInt(currencyDef.decimalDigits);
+        const RATE_PRECISION = 15n;
+        const rateMultiplier = 10n ** RATE_PRECISION;
+        const rateValue = Number(rate.rate);
+        const rateBigInt = BigInt(Math.round(rateValue * Number(rateMultiplier)));
+        const product = sourceSubunits * rateBigInt * targetMultiplier;
+        const divisor = rateMultiplier * sourceMultiplier;
+        const targetSubunits = __classPrivateFieldGet(this, _MoneyConverter_instances, "m", _MoneyConverter_bankersRound).call(this, product, divisor);
+        return money_js_1.Money.fromSubunits(targetSubunits, targetCurrency);
     }
     /**
      * Add two Money amounts, converting as needed.
@@ -139,4 +149,24 @@ class MoneyConverter {
     }
 }
 exports.MoneyConverter = MoneyConverter;
-_MoneyConverter_rateService = new WeakMap();
+_MoneyConverter_rateService = new WeakMap(), _MoneyConverter_instances = new WeakSet(), _MoneyConverter_bankersRound = function _MoneyConverter_bankersRound(numerator, denominator) {
+    if (denominator === 1n)
+        return numerator;
+    const quotient = numerator / denominator;
+    const remainder = numerator % denominator;
+    if (remainder === 0n)
+        return quotient;
+    const halfDenominator = denominator / 2n;
+    const absRemainder = remainder < 0n ? -remainder : remainder;
+    if (absRemainder > halfDenominator) {
+        return numerator < 0n ? quotient - 1n : quotient + 1n;
+    }
+    if (absRemainder === halfDenominator) {
+        const isQuotientEven = quotient % 2n === 0n;
+        if (isQuotientEven) {
+            return quotient;
+        }
+        return numerator < 0n ? quotient - 1n : quotient + 1n;
+    }
+    return quotient;
+};

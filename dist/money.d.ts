@@ -57,7 +57,15 @@ export declare class Money<C extends string = string> {
     subtract(other: Money<C>): Money<C>;
     /**
      * Multiply by a factor.
-     * Result is rounded using half-up rounding (standard financial rounding).
+     *
+     * DESIGN: Rounds immediately after multiplication using banker's rounding
+     * (round half-to-even). This prevents the "split penny problem" where
+     * line-item rounding differs from deferred rounding:
+     *   Per-item: $1.65 tax × 10 items = $16.50 ✓ (matches receipt)
+     *   Deferred: 10 × $1.649175 = $16.49 ✗ (missing penny)
+     *
+     * For chained calculations without intermediate rounding, perform arithmetic
+     * in Number space first, then create a Money object with the final result.
      */
     multiply(factor: number): Money<C>;
     /**
