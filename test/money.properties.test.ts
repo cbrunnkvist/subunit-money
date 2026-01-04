@@ -68,6 +68,9 @@ describe('Property-based tests', () => {
     })
   })
 
+  // These tests serve as executable specification for algebraic laws.
+  // The underlying BigInt guarantees most of this, but we want to know
+  // if refactoring ever breaks these interface guarantees.
   describe('Arithmetic properties', () => {
     it('satisfies commutativity of addition: a + b = b + a', () => {
       fc.assert(
@@ -198,6 +201,8 @@ describe('Property-based tests', () => {
     })
   })
 
+  // Executable specification for total ordering axioms.
+  // Same rationale as arithmetic properties above.
   describe('Comparison consistency', () => {
     it('maintains reflexivity: a = a', () => {
       fc.assert(
