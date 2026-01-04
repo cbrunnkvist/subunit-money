@@ -1,7 +1,7 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-01-03
-**Commit:** 1b39893
+**Generated:** 2026-01-04
+**Commit:** (pending)
 **Branch:** typescript-v2
 
 ## OVERVIEW
@@ -45,6 +45,8 @@ TypeScript money library using BigInt subunits for precision-safe monetary calcu
 - **Immutable**: All Money operations return new instances
 - **String amounts**: `.amount` returns string (precision-safe for JSON/DB)
 - **BigInt internal**: `#value` private, 8 decimal precision multiplier
+- **Banker's rounding**: IEEE 754-2008 round-half-to-even for all rounding operations
+- **Round-per-multiply**: Each `multiply()` rounds immediately (prevents split penny problem)
 - **ESM exports**: Use `.js` extension in imports (TypeScript compiles to ESM)
 - **Branded generics**: `Money<'USD'>` for compile-time currency safety
 - **Factory methods**: `Money.fromSubunits()`, `Money.zero()`, `Money.fromObject()`
@@ -80,3 +82,32 @@ npm run lint     # tsc --noEmit (type check only)
 - Package: `@cbrunnkvist/subunit-money` v2.0.0
 - Test file uses `node:test` and `node:assert` (no Jest/Vitest)
 - `currencymap.json` loaded at import time via `lib/index.ts`
+
+## CRITICAL LESSONS LEARNED
+
+### Rounding Implementation Oversight (Jan 2026)
+
+**What Happened:**
+During the TypeScript v2 rewrite, the `multiply()` method had a comment promising "banker's rounding" but actually truncated results. When fixing the truncation bug (commit d1ffc14), we implemented "half-up rounding" instead of the originally intended banker's rounding, and then **changed the documentation to match the incorrect implementation** rather than implementing the correct algorithm.
+
+**Why This Matters:**
+- Banker's rounding (round half-to-even) is the financial industry standard (IEEE 754-2008)
+- Half-up rounding introduces systematic upward bias over many transactions
+- Some jurisdictions legally require banker's rounding for payroll/tax
+- Changing docs to match bugs defeats the purpose of specifications
+
+**Root Cause:**
+- Insufficient understanding of rounding algorithms during bug fix
+- No test cases for exact-half scenarios (0.555, 0.545, etc.)
+- Didn't question why original spec said "banker's" vs "half-up"
+
+**Prevention:**
+1. When fixing bugs, always implement what the spec says, not what's easier
+2. Add test cases for rounding edge cases (exact half values)
+3. Consult financial software standards when making rounding decisions
+4. Question why specifications use specific terminology
+
+**Reference:**
+- Commit 289b842: Original spec with "banker's rounding"
+- Commit d1ffc14: Bug fix that implemented wrong algorithm
+- Financial standard: IEEE 754-2008 recommends round-to-nearest-even as default
