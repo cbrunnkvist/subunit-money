@@ -228,6 +228,12 @@ const loaded = new Money('USD', row.price) // Works perfectly
 
 Use `toNumber()` only when you explicitly need numeric calculations.
 
+## Choosing the Right Money Library
+
+**subunit-money** sits between currency.js (pragmatic but imprecise) and dinero.js (precise but ceremony-heavy). If you want BigInt precision with method-chaining ergonomics, and you're onboard with banker's rounding as the sensible default, this is your library.
+
+See **[CHOOSING-A-MONEY-LIBRARY.md](./CHOOSING-A-MONEY-LIBRARY.md)** for a detailed comparison of JavaScript money/precision libraries.
+
 ## Requirements
 
 - Node.js 18+
