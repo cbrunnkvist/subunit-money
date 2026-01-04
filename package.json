@@ -21,12 +21,13 @@
     "build": "tsc",
     "test": "node --import tsx --test test/*.test.ts",
     "lint": "tsc --noEmit",
-    "tag": "git tag v$(jq -r '.version' package.json)",
-    "prepare-release": "npm run build && git add dist && git commit -m \"Build $(jq -r '.version' package.json)\" && npm run tag",
-    "preversion": "npm run test && npm run lint",
-    "version": "npm run build && git add -A dist",
+    "check-clean": "git diff --quiet && git diff --cached --quiet",
+    "preversion": "npm run check-clean && npm test",
     "postversion": "git push && git push --tags",
-    "prepublishOnly": "npm run test && npm run build"
+    "prepublishOnly": "npm run check-clean && npm run build",
+    "release:patch": "npm version patch && npm publish",
+    "release:minor": "npm version minor && npm publish",
+    "release:major": "npm version major && npm publish"
   },
   "repository": {
     "type": "git",
