@@ -13,9 +13,9 @@ const price = new Money('USD', '19.99')
 const tax = price.multiply(0.0825)
 const total = price.add(tax)
 
-console.log(total.toString()) // "21.63 USD"
-console.log(total.amount)     // "21.63" (string, safe for JSON/DB)
-console.log(total.toNumber()) // 21.63 (number, for calculations)
+console.log(total.toString()) // "21.64 USD"
+console.log(total.amount)     // "21.64" (string, safe for JSON/DB)
+console.log(total.toNumber()) // 21.64 (number, for calculations)
 ```
 
 ## Why Model Money as a Value Object?

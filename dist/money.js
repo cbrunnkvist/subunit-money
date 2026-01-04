@@ -19,7 +19,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
     return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
-var _Money_instances, _a, _Money_value, _Money_currencyDef, _Money_parseAmount, _Money_fromInternal, _Money_assertSameCurrency, _Money_getInternalValue, _Money_createFromInternal, _Money_formatInternalValue;
+var _Money_instances, _a, _Money_value, _Money_currencyDef, _Money_parseAmount, _Money_assertSameCurrency, _Money_getInternalValue, _Money_roundedDivide, _Money_createFromInternal, _Money_formatInternalValue;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Money = void 0;
 const errors_js_1 = require("./errors.js");
@@ -103,16 +103,16 @@ class Money {
     }
     /**
      * Multiply by a factor.
-     * Result is rounded to the currency's decimal places using banker's rounding.
+     * Result is rounded using half-up rounding (standard financial rounding).
      */
     multiply(factor) {
         if (typeof factor !== 'number' || !Number.isFinite(factor)) {
             throw new TypeError(`Factor must be a finite number, got: ${factor}`);
         }
-        // Convert factor to BigInt-compatible form
         const factorStr = factor.toFixed(INTERNAL_PRECISION);
         const factorBigInt = BigInt(factorStr.replace('.', ''));
-        const result = (__classPrivateFieldGet(this, _Money_value, "f") * factorBigInt) / PRECISION_MULTIPLIER;
+        const product = __classPrivateFieldGet(this, _Money_value, "f") * factorBigInt;
+        const result = __classPrivateFieldGet(_a, _a, "m", _Money_roundedDivide).call(_a, product, PRECISION_MULTIPLIER);
         return __classPrivateFieldGet(_a, _a, "m", _Money_createFromInternal).call(_a, result, this.currency, __classPrivateFieldGet(this, _Money_currencyDef, "f"));
     }
     /**
@@ -129,6 +129,11 @@ class Money {
     allocate(proportions) {
         if (!Array.isArray(proportions) || proportions.length === 0) {
             throw new TypeError('Proportions must be a non-empty array');
+        }
+        for (const p of proportions) {
+            if (typeof p !== 'number' || !Number.isFinite(p) || p < 0) {
+                throw new TypeError('All proportions must be non-negative finite numbers');
+            }
         }
         const total = proportions.reduce((sum, p) => sum + p, 0);
         if (total <= 0) {
@@ -314,25 +319,25 @@ _a = Money, _Money_value = new WeakMap(), _Money_currencyDef = new WeakMap(), _M
     const paddedFrac = frac.padEnd(INTERNAL_PRECISION, '0');
     const combined = BigInt(whole + paddedFrac);
     return sign === '-' ? -combined : combined;
-}, _Money_fromInternal = function _Money_fromInternal(value, currency) {
-    const currencyDef = (0, currency_js_1.getCurrency)(currency);
-    if (!currencyDef) {
-        throw new errors_js_1.CurrencyUnknownError(currency);
-    }
-    // Create instance without parsing
-    const instance = Object.create(_a.prototype);
-    Object.defineProperty(instance, 'currency', { value: currency, enumerable: true });
-    Object.defineProperty(instance, '#value', { value });
-    Object.defineProperty(instance, '#currencyDef', { value: currencyDef });
-    instance['#value'] = value;
-    instance['#currencyDef'] = currencyDef;
-    return instance;
 }, _Money_assertSameCurrency = function _Money_assertSameCurrency(other) {
     if (this.currency !== other.currency) {
         throw new errors_js_1.CurrencyMismatchError(this.currency, other.currency);
     }
 }, _Money_getInternalValue = function _Money_getInternalValue() {
     return __classPrivateFieldGet(this, _Money_value, "f");
+}, _Money_roundedDivide = function _Money_roundedDivide(numerator, denominator) {
+    if (denominator === 1n)
+        return numerator;
+    const quotient = numerator / denominator;
+    const remainder = numerator % denominator;
+    if (remainder === 0n)
+        return quotient;
+    const halfDenominator = denominator / 2n;
+    const absRemainder = remainder < 0n ? -remainder : remainder;
+    if (absRemainder >= halfDenominator) {
+        return numerator < 0n ? quotient - 1n : quotient + 1n;
+    }
+    return quotient;
 }, _Money_createFromInternal = function _Money_createFromInternal(value, currency, currencyDef) {
     const instance = Object.create(_a.prototype);
     // Use Object.defineProperties for proper initialization
@@ -346,7 +351,7 @@ _a = Money, _Money_value = new WeakMap(), _Money_currencyDef = new WeakMap(), _M
 }, _Money_formatInternalValue = function _Money_formatInternalValue(value, currencyDef) {
     const decimals = currencyDef.decimalDigits;
     const divisor = 10n ** BigInt(INTERNAL_PRECISION - decimals);
-    const adjusted = value / divisor;
+    const adjusted = __classPrivateFieldGet(_a, _a, "m", _Money_roundedDivide).call(_a, value, divisor);
     const isNegative = adjusted < 0n;
     const abs = isNegative ? -adjusted : adjusted;
     if (decimals === 0) {

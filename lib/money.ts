@@ -94,28 +94,6 @@ export class Money<C extends string = string> {
   }
 
   /**
-   * Create a Money instance from internal BigInt value (for internal use).
-   */
-  static #fromInternal<C extends string>(value: bigint, currency: C): Money<C> {
-    const currencyDef = getCurrency(currency)
-    if (!currencyDef) {
-      throw new CurrencyUnknownError(currency)
-    }
-
-    // Create instance without parsing
-    const instance = Object.create(Money.prototype) as Money<C>
-    Object.defineProperty(instance, 'currency', { value: currency, enumerable: true })
-    Object.defineProperty(instance, '#value', { value })
-    Object.defineProperty(instance, '#currencyDef', { value: currencyDef })
-
-    // TypeScript doesn't see private fields on Object.create, so we need this workaround
-    ;(instance as any)['#value'] = value
-    ;(instance as any)['#currencyDef'] = currencyDef
-
-    return instance
-  }
-
-  /**
    * The amount as a formatted string with correct decimal places.
    * @example
    * new Money('USD', 19.9).amount // "19.90"
@@ -181,19 +159,37 @@ export class Money<C extends string = string> {
 
   /**
    * Multiply by a factor.
-   * Result is rounded to the currency's decimal places using banker's rounding.
+   * Result is rounded using half-up rounding (standard financial rounding).
    */
   multiply(factor: number): Money<C> {
     if (typeof factor !== 'number' || !Number.isFinite(factor)) {
       throw new TypeError(`Factor must be a finite number, got: ${factor}`)
     }
 
-    // Convert factor to BigInt-compatible form
     const factorStr = factor.toFixed(INTERNAL_PRECISION)
     const factorBigInt = BigInt(factorStr.replace('.', ''))
 
-    const result = (this.#value * factorBigInt) / PRECISION_MULTIPLIER
+    const product = this.#value * factorBigInt
+    const result = Money.#roundedDivide(product, PRECISION_MULTIPLIER)
     return Money.#createFromInternal(result, this.currency, this.#currencyDef)
+  }
+
+  /**
+   * Divide with half-up rounding (standard financial rounding).
+   */
+  static #roundedDivide(numerator: bigint, denominator: bigint): bigint {
+    if (denominator === 1n) return numerator
+
+    const quotient = numerator / denominator
+    const remainder = numerator % denominator
+    if (remainder === 0n) return quotient
+
+    const halfDenominator = denominator / 2n
+    const absRemainder = remainder < 0n ? -remainder : remainder
+    if (absRemainder >= halfDenominator) {
+      return numerator < 0n ? quotient - 1n : quotient + 1n
+    }
+    return quotient
   }
 
   /**
@@ -210,6 +206,12 @@ export class Money<C extends string = string> {
   allocate(proportions: number[]): Money<C>[] {
     if (!Array.isArray(proportions) || proportions.length === 0) {
       throw new TypeError('Proportions must be a non-empty array')
+    }
+
+    for (const p of proportions) {
+      if (typeof p !== 'number' || !Number.isFinite(p) || p < 0) {
+        throw new TypeError('All proportions must be non-negative finite numbers')
+      }
     }
 
     const total = proportions.reduce((sum, p) => sum + p, 0)
@@ -424,12 +426,12 @@ export class Money<C extends string = string> {
   }
 
   /**
-   * Format internal BigInt value to string amount.
+   * Format internal BigInt value to string amount with proper rounding.
    */
   static #formatInternalValue(value: bigint, currencyDef: CurrencyDefinition): string {
     const decimals = currencyDef.decimalDigits
     const divisor = 10n ** BigInt(INTERNAL_PRECISION - decimals)
-    const adjusted = value / divisor
+    const adjusted = Money.#roundedDivide(value, divisor)
 
     const isNegative = adjusted < 0n
     const abs = isNegative ? -adjusted : adjusted

@@ -52,11 +52,14 @@ class MoneyConverter {
         if (money.currency === targetCurrency) {
             return money;
         }
+        const currencyDef = (0, currency_js_1.getCurrency)(targetCurrency);
+        if (!currencyDef) {
+            throw new errors_js_1.CurrencyUnknownError(targetCurrency);
+        }
         const rate = __classPrivateFieldGet(this, _MoneyConverter_rateService, "f").getRate(money.currency, targetCurrency);
         if (!rate) {
             throw new errors_js_1.ExchangeRateError(money.currency, targetCurrency);
         }
-        const currencyDef = (0, currency_js_1.getCurrency)(targetCurrency);
         const convertedAmount = Number(money.amount) * Number(rate.rate);
         const rounded = convertedAmount.toFixed(currencyDef.decimalDigits);
         return new money_js_1.Money(targetCurrency, rounded);

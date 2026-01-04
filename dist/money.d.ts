@@ -57,7 +57,7 @@ export declare class Money<C extends string = string> {
     subtract(other: Money<C>): Money<C>;
     /**
      * Multiply by a factor.
-     * Result is rounded to the currency's decimal places using banker's rounding.
+     * Result is rounded using half-up rounding (standard financial rounding).
      */
     multiply(factor: number): Money<C>;
     /**

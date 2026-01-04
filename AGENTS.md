@@ -63,7 +63,7 @@ TypeScript money library using BigInt subunits for precision-safe monetary calcu
 
 - **Auto-inverse rates**: Setting USD→EUR auto-creates EUR→USD
 - **Allocate method**: Distributes amount by ratios, never loses cents
-- **Discrepancy detection**: `getDiscrepancies(tolerance)` finds rate conflicts
+- **Discrepancy detection**: `getRatePair(currencyA, currencyB)` returns forward/reverse rates with discrepancy value
 - **Subunit storage**: DB stores `toSubunits()` (BigInt), restore via `fromSubunits()`
 
 ## COMMANDS

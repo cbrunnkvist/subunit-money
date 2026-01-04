@@ -241,6 +241,7 @@ describe('MoneyConverter', () => {
     registerCurrency('USD', 2)
     registerCurrency('EUR', 2)
     registerCurrency('GBP', 2)
+    registerCurrency('JPY', 0)
 
     service = new ExchangeRateService()
     service.setRate('USD', 'EUR', 0.92)
@@ -308,6 +309,72 @@ describe('Cryptocurrency support', () => {
     const a = new Money('BTC', '1.00000000')
     const b = new Money('BTC', '0.00000001')
     assert.strictEqual(a.add(b).amount, '1.00000001')
+  })
+})
+
+describe('Bug regression tests', () => {
+  beforeEach(() => {
+    clearCurrencies()
+    registerCurrency('USD', 2)
+    registerCurrency('EUR', 2)
+  })
+
+  describe('multiply() must round, not truncate', () => {
+    it('rounds 0.999 up to 1.00', () => {
+      const money = new Money('USD', '1.00')
+      assert.strictEqual(money.multiply(0.999).amount, '1.00')
+    })
+
+    it('rounds 1.999 up to 2.00', () => {
+      const money = new Money('USD', '1.00')
+      assert.strictEqual(money.multiply(1.999).amount, '2.00')
+    })
+
+    it('rounds tax calculation correctly: 19.99 * 0.0825 = 1.65', () => {
+      // 19.99 * 0.0825 = 1.649175, which should round to 1.65
+      const price = new Money('USD', '19.99')
+      assert.strictEqual(price.multiply(0.0825).amount, '1.65')
+    })
+
+    it('rounds 0.555 to 0.56 (round half up)', () => {
+      const money = new Money('USD', '1.00')
+      assert.strictEqual(money.multiply(0.555).amount, '0.56')
+    })
+
+    it('rounds 0.5 boundary correctly', () => {
+      const money = new Money('USD', '1.00')
+      // 1.00 * 0.005 = 0.005, rounds to 0.01
+      assert.strictEqual(money.multiply(0.005).amount, '0.01')
+    })
+  })
+
+  describe('allocate() must reject invalid proportions', () => {
+    it('rejects negative proportions', () => {
+      const money = new Money('USD', '100.00')
+      assert.throws(() => money.allocate([-1, 2]), TypeError)
+    })
+
+    it('rejects proportions containing NaN', () => {
+      const money = new Money('USD', '100.00')
+      assert.throws(() => money.allocate([1, NaN, 1]), TypeError)
+    })
+
+    it('rejects proportions containing Infinity', () => {
+      const money = new Money('USD', '100.00')
+      assert.throws(() => money.allocate([1, Infinity]), TypeError)
+    })
+  })
+
+  describe('MoneyConverter must validate target currency', () => {
+    it('throws CurrencyUnknownError for unregistered target currency', () => {
+      const service = new ExchangeRateService()
+      service.setRate('USD', 'XYZ', 1.5)
+      const converter = new MoneyConverter(service)
+      const usd = new Money('USD', '100.00')
+      
+      // XYZ is not registered as a currency
+      assert.throws(() => converter.convert(usd, 'XYZ'), CurrencyUnknownError)
+    })
   })
 })
 

@@ -9,7 +9,7 @@
 
 import { Money } from './money.js'
 import { ExchangeRateService } from './exchange-rate-service.js'
-import { ExchangeRateError } from './errors.js'
+import { ExchangeRateError, CurrencyUnknownError } from './errors.js'
 import { getCurrency } from './currency.js'
 
 /**
@@ -46,14 +46,18 @@ export class MoneyConverter {
       return money as unknown as Money<To>
     }
 
+    const currencyDef = getCurrency(targetCurrency)
+    if (!currencyDef) {
+      throw new CurrencyUnknownError(targetCurrency)
+    }
+
     const rate = this.#rateService.getRate(money.currency, targetCurrency)
     if (!rate) {
       throw new ExchangeRateError(money.currency, targetCurrency)
     }
 
-    const currencyDef = getCurrency(targetCurrency)
     const convertedAmount = Number(money.amount) * Number(rate.rate)
-    const rounded = convertedAmount.toFixed(currencyDef!.decimalDigits)
+    const rounded = convertedAmount.toFixed(currencyDef.decimalDigits)
     return new Money(targetCurrency, rounded)
   }
 
