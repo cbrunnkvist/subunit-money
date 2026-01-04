@@ -30,6 +30,31 @@ export class MoneyConverter {
     this.#rateService = rateService
   }
 
+  #bankersRound(numerator: bigint, denominator: bigint): bigint {
+    if (denominator === 1n) return numerator
+
+    const quotient = numerator / denominator
+    const remainder = numerator % denominator
+    if (remainder === 0n) return quotient
+
+    const halfDenominator = denominator / 2n
+    const absRemainder = remainder < 0n ? -remainder : remainder
+
+    if (absRemainder > halfDenominator) {
+      return numerator < 0n ? quotient - 1n : quotient + 1n
+    }
+
+    if (absRemainder === halfDenominator) {
+      const isQuotientEven = quotient % 2n === 0n
+      if (isQuotientEven) {
+        return quotient
+      }
+      return numerator < 0n ? quotient - 1n : quotient + 1n
+    }
+
+    return quotient
+  }
+
   /**
    * Convert a Money amount to another currency.
    *
@@ -56,9 +81,21 @@ export class MoneyConverter {
       throw new ExchangeRateError(money.currency, targetCurrency)
     }
 
-    const convertedAmount = Number(money.amount) * Number(rate.rate)
-    const rounded = convertedAmount.toFixed(currencyDef.decimalDigits)
-    return new Money(targetCurrency, rounded)
+    const sourceCurrencyDef = getCurrency(money.currency)!
+    const sourceSubunits = money.toSubunits()
+    const sourceMultiplier = 10n ** BigInt(sourceCurrencyDef.decimalDigits)
+    const targetMultiplier = 10n ** BigInt(currencyDef.decimalDigits)
+
+    const RATE_PRECISION = 15n
+    const rateMultiplier = 10n ** RATE_PRECISION
+    const rateValue = Number(rate.rate)
+    const rateBigInt = BigInt(Math.round(rateValue * Number(rateMultiplier)))
+
+    const product = sourceSubunits * rateBigInt * targetMultiplier
+    const divisor = rateMultiplier * sourceMultiplier
+    const targetSubunits = this.#bankersRound(product, divisor)
+
+    return Money.fromSubunits(targetSubunits, targetCurrency)
   }
 
   /**
