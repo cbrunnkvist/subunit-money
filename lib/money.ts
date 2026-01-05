@@ -37,6 +37,8 @@ export interface MoneyObject<C extends string = string> {
  */
 export class Money<C extends string = string> {
   readonly currency: C
+  readonly amount: string
+  readonly formatted: string
 
   // Private BigInt storage - stores currency native subunits directly
   readonly #subunits: bigint
@@ -60,6 +62,10 @@ export class Money<C extends string = string> {
     this.currency = currency
     this.#currencyDef = currencyDef
     this.#subunits = this.#parseAmount(amount)
+    
+    // Pre-calculate string representations for better DX and performance
+    this.amount = Money.#formatSubunits(this.#subunits, currencyDef)
+    this.formatted = Money.#formatForDisplay(this.amount, currencyDef)
   }
 
   /**
@@ -90,26 +96,17 @@ export class Money<C extends string = string> {
    * Shows the amount and currency instead of just the class name.
    */
   [Symbol.for('nodejs.util.inspect.custom')](): string {
-    return `Money { amount: '${this.displayAmount}', currency: '${this.currency}' }`
+    return `Money { amount: '${this.formatted}', currency: '${this.currency}' }`
   }
 
   /**
-   * The amount formatted for display.
-   * Respects the currency's `displayDecimals` setting.
-   * - Removes trailing zeros beyond the display precision.
-   * - Keeps significant digits even if they exceed display precision.
-   * 
-   * @example
-   * // Currency with decimals=30, displayDecimals=2
-   * new Money('XNO', '100').displayAmount // "100.00"
-   * new Money('XNO', '100.1234').displayAmount // "100.1234"
+   * Format the full amount string for display purposes.
    */
-  get displayAmount(): string {
-    const fullAmount = this.amount
-    const preferredDecimals = this.#currencyDef.displayDecimals ?? this.#currencyDef.decimalDigits
+  static #formatForDisplay(fullAmount: string, currencyDef: CurrencyDefinition): string {
+    const preferredDecimals = currencyDef.displayDecimals ?? currencyDef.decimalDigits
 
     // If we want full precision anyway, just return it
-    if (preferredDecimals === this.#currencyDef.decimalDigits) {
+    if (preferredDecimals === currencyDef.decimalDigits) {
       return fullAmount
     }
 
@@ -131,34 +128,10 @@ export class Money<C extends string = string> {
       return whole
     }
     
-    // If fractional part became empty but we want decimals (e.g. 2), it was handled by padEnd above
-    // except if trimmedFrac was empty string. padEnd on empty string works.
-    
     return `${whole}.${trimmedFrac}`
   }
 
-  /**
-   * The amount as a formatted string with correct decimal places.
-   * @example
-   * new Money('USD', 19.9).amount // "19.90"
-   * new Money('JPY', 1000).amount // "1000"
-   */
-  get amount(): string {
-    const decimals = this.#currencyDef.decimalDigits
-    const abs = this.#subunits < 0n ? -this.#subunits : this.#subunits
-    const isNegative = this.#subunits < 0n
 
-    if (decimals === 0) {
-      return `${isNegative ? '-' : ''}${abs}`
-    }
-
-    const multiplier = 10n ** BigInt(decimals)
-    const wholePart = abs / multiplier
-    const fracPart = abs % multiplier
-
-    const sign = isNegative ? '-' : ''
-    return `${sign}${wholePart}.${fracPart.toString().padStart(decimals, '0')}`
-  }
 
   /**
    * Ensure another Money has the same currency.
@@ -409,7 +382,7 @@ export class Money<C extends string = string> {
    * Convert to string representation.
    */
   toString(): string {
-    return `${this.displayAmount} ${this.currency}`
+    return `${this.formatted} ${this.currency}`
   }
 
   /**

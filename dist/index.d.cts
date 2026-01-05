@@ -28,6 +28,8 @@ interface MoneyObject<C extends string = string> {
 declare class Money<C extends string = string> {
     #private;
     readonly currency: C;
+    readonly amount: string;
+    readonly formatted: string;
     /**
      * Create a new Money instance.
      *
@@ -38,25 +40,6 @@ declare class Money<C extends string = string> {
      * @throws {SubunitError} If the amount has more decimals than the currency allows
      */
     constructor(currency: C, amount: number | string);
-    /**
-     * The amount formatted for display.
-     * Respects the currency's `displayDecimals` setting.
-     * - Removes trailing zeros beyond the display precision.
-     * - Keeps significant digits even if they exceed display precision.
-     *
-     * @example
-     * // Currency with decimals=30, displayDecimals=2
-     * new Money('XNO', '100').displayAmount // "100.00"
-     * new Money('XNO', '100.1234').displayAmount // "100.1234"
-     */
-    get displayAmount(): string;
-    /**
-     * The amount as a formatted string with correct decimal places.
-     * @example
-     * new Money('USD', 19.9).amount // "19.90"
-     * new Money('JPY', 1000).amount // "1000"
-     */
-    get amount(): string;
     /**
      * Add another Money amount.
      * @throws {CurrencyMismatchError} If currencies don't match

@@ -114,7 +114,7 @@ function clearCurrencies() {
 }
 
 // lib/money.ts
-var _subunits, _currencyDef, _Money_instances, parseAmount_fn, assertSameCurrency_fn, getInternalValue_fn, _Money_static, parseFactor_fn, roundedDivide_fn, createFromSubunits_fn, formatSubunits_fn;
+var _subunits, _currencyDef, _Money_instances, parseAmount_fn, _Money_static, formatForDisplay_fn, assertSameCurrency_fn, getInternalValue_fn, parseFactor_fn, roundedDivide_fn, createFromSubunits_fn, formatSubunits_fn;
 var _Money = class _Money {
   /**
    * Create a new Money instance.
@@ -130,6 +130,7 @@ var _Money = class _Money {
     // Private BigInt storage - stores currency native subunits directly
     __privateAdd(this, _subunits);
     __privateAdd(this, _currencyDef);
+    var _a, _b;
     const currencyDef = getCurrency(currency);
     if (!currencyDef) {
       throw new CurrencyUnknownError(currency);
@@ -137,60 +138,15 @@ var _Money = class _Money {
     this.currency = currency;
     __privateSet(this, _currencyDef, currencyDef);
     __privateSet(this, _subunits, __privateMethod(this, _Money_instances, parseAmount_fn).call(this, amount));
+    this.amount = __privateMethod(_a = _Money, _Money_static, formatSubunits_fn).call(_a, __privateGet(this, _subunits), currencyDef);
+    this.formatted = __privateMethod(_b = _Money, _Money_static, formatForDisplay_fn).call(_b, this.amount, currencyDef);
   }
   /**
    * Custom console inspection for Node.js.
    * Shows the amount and currency instead of just the class name.
    */
   [/* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom")]() {
-    return `Money { amount: '${this.displayAmount}', currency: '${this.currency}' }`;
-  }
-  /**
-   * The amount formatted for display.
-   * Respects the currency's `displayDecimals` setting.
-   * - Removes trailing zeros beyond the display precision.
-   * - Keeps significant digits even if they exceed display precision.
-   * 
-   * @example
-   * // Currency with decimals=30, displayDecimals=2
-   * new Money('XNO', '100').displayAmount // "100.00"
-   * new Money('XNO', '100.1234').displayAmount // "100.1234"
-   */
-  get displayAmount() {
-    const fullAmount = this.amount;
-    const preferredDecimals = __privateGet(this, _currencyDef).displayDecimals ?? __privateGet(this, _currencyDef).decimalDigits;
-    if (preferredDecimals === __privateGet(this, _currencyDef).decimalDigits) {
-      return fullAmount;
-    }
-    const [whole, frac = ""] = fullAmount.split(".");
-    if (!frac) return whole;
-    let trimmedFrac = frac.replace(/0+$/, "");
-    if (trimmedFrac.length < preferredDecimals) {
-      trimmedFrac = trimmedFrac.padEnd(preferredDecimals, "0");
-    }
-    if (trimmedFrac === "" && preferredDecimals === 0) {
-      return whole;
-    }
-    return `${whole}.${trimmedFrac}`;
-  }
-  /**
-   * The amount as a formatted string with correct decimal places.
-   * @example
-   * new Money('USD', 19.9).amount // "19.90"
-   * new Money('JPY', 1000).amount // "1000"
-   */
-  get amount() {
-    const decimals = __privateGet(this, _currencyDef).decimalDigits;
-    const abs = __privateGet(this, _subunits) < 0n ? -__privateGet(this, _subunits) : __privateGet(this, _subunits);
-    const isNegative = __privateGet(this, _subunits) < 0n;
-    if (decimals === 0) {
-      return `${isNegative ? "-" : ""}${abs}`;
-    }
-    const multiplier = 10n ** BigInt(decimals);
-    const wholePart = abs / multiplier;
-    const fracPart = abs % multiplier;
-    const sign = isNegative ? "-" : "";
-    return `${sign}${wholePart}.${fracPart.toString().padStart(decimals, "0")}`;
+    return `Money { amount: '${this.formatted}', currency: '${this.currency}' }`;
   }
   // ============ Arithmetic Operations ============
   /**
@@ -349,7 +305,7 @@ var _Money = class _Money {
    * Convert to string representation.
    */
   toString() {
-    return `${this.displayAmount} ${this.currency}`;
+    return `${this.formatted} ${this.currency}`;
   }
   /**
    * Get the amount as a number (may lose precision for large values).
@@ -427,6 +383,23 @@ parseAmount_fn = function(amount) {
   const combined = BigInt(whole + paddedFrac);
   return sign === "-" ? -combined : combined;
 };
+_Money_static = new WeakSet();
+formatForDisplay_fn = function(fullAmount, currencyDef) {
+  const preferredDecimals = currencyDef.displayDecimals ?? currencyDef.decimalDigits;
+  if (preferredDecimals === currencyDef.decimalDigits) {
+    return fullAmount;
+  }
+  const [whole, frac = ""] = fullAmount.split(".");
+  if (!frac) return whole;
+  let trimmedFrac = frac.replace(/0+$/, "");
+  if (trimmedFrac.length < preferredDecimals) {
+    trimmedFrac = trimmedFrac.padEnd(preferredDecimals, "0");
+  }
+  if (trimmedFrac === "" && preferredDecimals === 0) {
+    return whole;
+  }
+  return `${whole}.${trimmedFrac}`;
+};
 /**
  * Ensure another Money has the same currency.
  */
@@ -441,7 +414,6 @@ assertSameCurrency_fn = function(other) {
 getInternalValue_fn = function() {
   return __privateGet(this, _subunits);
 };
-_Money_static = new WeakSet();
 parseFactor_fn = function(factor) {
   const str = String(factor);
   const [base, exponent] = str.split("e");
