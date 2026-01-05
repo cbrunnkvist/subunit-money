@@ -19,14 +19,11 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
     return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
-var _Money_instances, _a, _Money_value, _Money_currencyDef, _Money_parseAmount, _Money_assertSameCurrency, _Money_getInternalValue, _Money_roundedDivide, _Money_createFromInternal, _Money_formatInternalValue;
+var _Money_instances, _a, _Money_subunits, _Money_currencyDef, _Money_parseAmount, _Money_assertSameCurrency, _Money_getInternalValue, _Money_parseFactor, _Money_roundedDivide, _Money_createFromSubunits, _Money_formatSubunits;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Money = void 0;
 const errors_js_1 = require("./errors.js");
 const currency_js_1 = require("./currency.js");
-// Internal precision: 8 decimal places (supports Bitcoin and most cryptocurrencies)
-const INTERNAL_PRECISION = 8;
-const PRECISION_MULTIPLIER = 10n ** BigInt(INTERNAL_PRECISION);
 /**
  * Money class - represents a monetary amount in a specific currency.
  *
@@ -50,8 +47,8 @@ class Money {
      */
     constructor(currency, amount) {
         _Money_instances.add(this);
-        // Private BigInt storage - not exposed to prevent precision leaks
-        _Money_value.set(this, void 0);
+        // Private BigInt storage - stores currency native subunits directly
+        _Money_subunits.set(this, void 0);
         _Money_currencyDef.set(this, void 0);
         const currencyDef = (0, currency_js_1.getCurrency)(currency);
         if (!currencyDef) {
@@ -59,7 +56,7 @@ class Money {
         }
         this.currency = currency;
         __classPrivateFieldSet(this, _Money_currencyDef, currencyDef, "f");
-        __classPrivateFieldSet(this, _Money_value, __classPrivateFieldGet(this, _Money_instances, "m", _Money_parseAmount).call(this, amount), "f");
+        __classPrivateFieldSet(this, _Money_subunits, __classPrivateFieldGet(this, _Money_instances, "m", _Money_parseAmount).call(this, amount), "f");
     }
     /**
      * The amount as a formatted string with correct decimal places.
@@ -69,10 +66,8 @@ class Money {
      */
     get amount() {
         const decimals = __classPrivateFieldGet(this, _Money_currencyDef, "f").decimalDigits;
-        const divisor = 10n ** BigInt(INTERNAL_PRECISION - decimals);
-        const adjusted = __classPrivateFieldGet(this, _Money_value, "f") / divisor;
-        const isNegative = adjusted < 0n;
-        const abs = isNegative ? -adjusted : adjusted;
+        const abs = __classPrivateFieldGet(this, _Money_subunits, "f") < 0n ? -__classPrivateFieldGet(this, _Money_subunits, "f") : __classPrivateFieldGet(this, _Money_subunits, "f");
+        const isNegative = __classPrivateFieldGet(this, _Money_subunits, "f") < 0n;
         if (decimals === 0) {
             return `${isNegative ? '-' : ''}${abs}`;
         }
@@ -89,8 +84,8 @@ class Money {
      */
     add(other) {
         __classPrivateFieldGet(this, _Money_instances, "m", _Money_assertSameCurrency).call(this, other);
-        const result = __classPrivateFieldGet(this, _Money_value, "f") + __classPrivateFieldGet(other, _Money_instances, "m", _Money_getInternalValue).call(other);
-        return __classPrivateFieldGet(_a, _a, "m", _Money_createFromInternal).call(_a, result, this.currency, __classPrivateFieldGet(this, _Money_currencyDef, "f"));
+        const result = __classPrivateFieldGet(this, _Money_subunits, "f") + __classPrivateFieldGet(other, _Money_instances, "m", _Money_getInternalValue).call(other);
+        return __classPrivateFieldGet(_a, _a, "m", _Money_createFromSubunits).call(_a, result, this.currency, __classPrivateFieldGet(this, _Money_currencyDef, "f"));
     }
     /**
      * Subtract another Money amount.
@@ -98,30 +93,24 @@ class Money {
      */
     subtract(other) {
         __classPrivateFieldGet(this, _Money_instances, "m", _Money_assertSameCurrency).call(this, other);
-        const result = __classPrivateFieldGet(this, _Money_value, "f") - __classPrivateFieldGet(other, _Money_instances, "m", _Money_getInternalValue).call(other);
-        return __classPrivateFieldGet(_a, _a, "m", _Money_createFromInternal).call(_a, result, this.currency, __classPrivateFieldGet(this, _Money_currencyDef, "f"));
+        const result = __classPrivateFieldGet(this, _Money_subunits, "f") - __classPrivateFieldGet(other, _Money_instances, "m", _Money_getInternalValue).call(other);
+        return __classPrivateFieldGet(_a, _a, "m", _Money_createFromSubunits).call(_a, result, this.currency, __classPrivateFieldGet(this, _Money_currencyDef, "f"));
     }
     /**
      * Multiply by a factor.
      *
      * DESIGN: Rounds immediately after multiplication using banker's rounding
-     * (round half-to-even). This prevents the "split penny problem" where
-     * line-item rounding differs from deferred rounding:
-     *   Per-item: $1.65 tax × 10 items = $16.50 ✓ (matches receipt)
-     *   Deferred: 10 × $1.649175 = $16.49 ✗ (missing penny)
-     *
-     * For chained calculations without intermediate rounding, perform arithmetic
-     * in Number space first, then create a Money object with the final result.
+     * (round half-to-even). This prevents the "split penny problem".
      */
     multiply(factor) {
         if (typeof factor !== 'number' || !Number.isFinite(factor)) {
             throw new TypeError(`Factor must be a finite number, got: ${factor}`);
         }
-        const factorStr = factor.toFixed(INTERNAL_PRECISION);
-        const factorBigInt = BigInt(factorStr.replace('.', ''));
-        const product = __classPrivateFieldGet(this, _Money_value, "f") * factorBigInt;
-        const result = __classPrivateFieldGet(_a, _a, "m", _Money_roundedDivide).call(_a, product, PRECISION_MULTIPLIER);
-        return __classPrivateFieldGet(_a, _a, "m", _Money_createFromInternal).call(_a, result, this.currency, __classPrivateFieldGet(this, _Money_currencyDef, "f"));
+        const { value: factorValue, scale } = __classPrivateFieldGet(_a, _a, "m", _Money_parseFactor).call(_a, factor);
+        const product = __classPrivateFieldGet(this, _Money_subunits, "f") * factorValue;
+        const divisor = 10n ** scale;
+        const result = __classPrivateFieldGet(_a, _a, "m", _Money_roundedDivide).call(_a, product, divisor);
+        return __classPrivateFieldGet(_a, _a, "m", _Money_createFromSubunits).call(_a, result, this.currency, __classPrivateFieldGet(this, _Money_currencyDef, "f"));
     }
     /**
      * Allocate this amount proportionally.
@@ -129,10 +118,6 @@ class Money {
      *
      * @param proportions - Array of proportions (e.g., [1, 1, 1] for three-way split)
      * @returns Array of Money objects that sum to the original amount
-     *
-     * @example
-     * new Money('USD', '100').allocate([1, 1, 1])
-     * // Returns: [Money('33.34'), Money('33.33'), Money('33.33')]
      */
     allocate(proportions) {
         if (!Array.isArray(proportions) || proportions.length === 0) {
@@ -147,10 +132,7 @@ class Money {
         if (total <= 0) {
             throw new TypeError('Sum of proportions must be positive');
         }
-        // Work in currency subunits to avoid precision loss
-        const decimals = __classPrivateFieldGet(this, _Money_currencyDef, "f").decimalDigits;
-        const subunitMultiplier = 10n ** BigInt(INTERNAL_PRECISION - decimals);
-        const totalSubunits = __classPrivateFieldGet(this, _Money_value, "f") / subunitMultiplier;
+        const totalSubunits = __classPrivateFieldGet(this, _Money_subunits, "f");
         // Calculate base allocations
         const allocations = proportions.map((p) => {
             return (totalSubunits * BigInt(Math.round(p * 1000000))) / BigInt(Math.round(total * 1000000));
@@ -170,8 +152,7 @@ class Money {
         }
         // Convert back to Money objects
         return allocations.map((subunits) => {
-            const internalValue = subunits * subunitMultiplier;
-            return __classPrivateFieldGet(_a, _a, "m", _Money_createFromInternal).call(_a, internalValue, this.currency, __classPrivateFieldGet(this, _Money_currencyDef, "f"));
+            return __classPrivateFieldGet(_a, _a, "m", _Money_createFromSubunits).call(_a, subunits, this.currency, __classPrivateFieldGet(this, _Money_currencyDef, "f"));
         });
     }
     // ============ Comparison Operations ============
@@ -181,7 +162,7 @@ class Money {
      */
     equalTo(other) {
         __classPrivateFieldGet(this, _Money_instances, "m", _Money_assertSameCurrency).call(this, other);
-        return __classPrivateFieldGet(this, _Money_value, "f") === __classPrivateFieldGet(other, _Money_instances, "m", _Money_getInternalValue).call(other);
+        return __classPrivateFieldGet(this, _Money_subunits, "f") === __classPrivateFieldGet(other, _Money_instances, "m", _Money_getInternalValue).call(other);
     }
     /**
      * Check if this amount is greater than another.
@@ -189,7 +170,7 @@ class Money {
      */
     greaterThan(other) {
         __classPrivateFieldGet(this, _Money_instances, "m", _Money_assertSameCurrency).call(this, other);
-        return __classPrivateFieldGet(this, _Money_value, "f") > __classPrivateFieldGet(other, _Money_instances, "m", _Money_getInternalValue).call(other);
+        return __classPrivateFieldGet(this, _Money_subunits, "f") > __classPrivateFieldGet(other, _Money_instances, "m", _Money_getInternalValue).call(other);
     }
     /**
      * Check if this amount is less than another.
@@ -197,7 +178,7 @@ class Money {
      */
     lessThan(other) {
         __classPrivateFieldGet(this, _Money_instances, "m", _Money_assertSameCurrency).call(this, other);
-        return __classPrivateFieldGet(this, _Money_value, "f") < __classPrivateFieldGet(other, _Money_instances, "m", _Money_getInternalValue).call(other);
+        return __classPrivateFieldGet(this, _Money_subunits, "f") < __classPrivateFieldGet(other, _Money_instances, "m", _Money_getInternalValue).call(other);
     }
     /**
      * Check if this amount is greater than or equal to another.
@@ -205,7 +186,7 @@ class Money {
      */
     greaterThanOrEqual(other) {
         __classPrivateFieldGet(this, _Money_instances, "m", _Money_assertSameCurrency).call(this, other);
-        return __classPrivateFieldGet(this, _Money_value, "f") >= __classPrivateFieldGet(other, _Money_instances, "m", _Money_getInternalValue).call(other);
+        return __classPrivateFieldGet(this, _Money_subunits, "f") >= __classPrivateFieldGet(other, _Money_instances, "m", _Money_getInternalValue).call(other);
     }
     /**
      * Check if this amount is less than or equal to another.
@@ -213,25 +194,25 @@ class Money {
      */
     lessThanOrEqual(other) {
         __classPrivateFieldGet(this, _Money_instances, "m", _Money_assertSameCurrency).call(this, other);
-        return __classPrivateFieldGet(this, _Money_value, "f") <= __classPrivateFieldGet(other, _Money_instances, "m", _Money_getInternalValue).call(other);
+        return __classPrivateFieldGet(this, _Money_subunits, "f") <= __classPrivateFieldGet(other, _Money_instances, "m", _Money_getInternalValue).call(other);
     }
     /**
      * Check if this amount is zero.
      */
     isZero() {
-        return __classPrivateFieldGet(this, _Money_value, "f") === 0n;
+        return __classPrivateFieldGet(this, _Money_subunits, "f") === 0n;
     }
     /**
      * Check if this amount is positive (greater than zero).
      */
     isPositive() {
-        return __classPrivateFieldGet(this, _Money_value, "f") > 0n;
+        return __classPrivateFieldGet(this, _Money_subunits, "f") > 0n;
     }
     /**
      * Check if this amount is negative (less than zero).
      */
     isNegative() {
-        return __classPrivateFieldGet(this, _Money_value, "f") < 0n;
+        return __classPrivateFieldGet(this, _Money_subunits, "f") < 0n;
     }
     // ============ Serialization ============
     /**
@@ -261,9 +242,7 @@ class Money {
      * Useful for database storage (Stripe-style integer storage).
      */
     toSubunits() {
-        const decimals = __classPrivateFieldGet(this, _Money_currencyDef, "f").decimalDigits;
-        const divisor = 10n ** BigInt(INTERNAL_PRECISION - decimals);
-        return __classPrivateFieldGet(this, _Money_value, "f") / divisor;
+        return __classPrivateFieldGet(this, _Money_subunits, "f");
     }
     // ============ Static Factory Methods ============
     /**
@@ -282,9 +261,7 @@ class Money {
             throw new errors_js_1.CurrencyUnknownError(currency);
         }
         const bigintSubunits = typeof subunits === 'number' ? BigInt(subunits) : subunits;
-        const multiplier = 10n ** BigInt(INTERNAL_PRECISION - currencyDef.decimalDigits);
-        const internalValue = bigintSubunits * multiplier;
-        return __classPrivateFieldGet(_a, _a, "m", _Money_createFromInternal).call(_a, internalValue, currency, currencyDef);
+        return __classPrivateFieldGet(_a, _a, "m", _Money_createFromSubunits).call(_a, bigintSubunits, currency, currencyDef);
     }
     /**
      * Compare two Money objects (for use with Array.sort).
@@ -310,21 +287,17 @@ class Money {
     }
 }
 exports.Money = Money;
-_a = Money, _Money_value = new WeakMap(), _Money_currencyDef = new WeakMap(), _Money_instances = new WeakSet(), _Money_parseAmount = function _Money_parseAmount(amount) {
-    // Convert to string for consistent parsing
+_a = Money, _Money_subunits = new WeakMap(), _Money_currencyDef = new WeakMap(), _Money_instances = new WeakSet(), _Money_parseAmount = function _Money_parseAmount(amount) {
     const str = typeof amount === 'number' ? String(amount) : amount;
-    // Validate format: optional minus, digits, optional decimal part
     const match = str.match(/^(-)?(\d+)(?:\.(\d+))?$/);
     if (!match) {
         throw new errors_js_1.AmountError(amount);
     }
     const [, sign, whole, frac = ''] = match;
-    // Check decimal places don't exceed currency limit
     if (frac.length > __classPrivateFieldGet(this, _Money_currencyDef, "f").decimalDigits) {
         throw new errors_js_1.SubunitError(this.currency, __classPrivateFieldGet(this, _Money_currencyDef, "f").decimalDigits);
     }
-    // Pad fraction to internal precision and combine
-    const paddedFrac = frac.padEnd(INTERNAL_PRECISION, '0');
+    const paddedFrac = frac.padEnd(__classPrivateFieldGet(this, _Money_currencyDef, "f").decimalDigits, '0');
     const combined = BigInt(whole + paddedFrac);
     return sign === '-' ? -combined : combined;
 }, _Money_assertSameCurrency = function _Money_assertSameCurrency(other) {
@@ -332,7 +305,26 @@ _a = Money, _Money_value = new WeakMap(), _Money_currencyDef = new WeakMap(), _M
         throw new errors_js_1.CurrencyMismatchError(this.currency, other.currency);
     }
 }, _Money_getInternalValue = function _Money_getInternalValue() {
-    return __classPrivateFieldGet(this, _Money_value, "f");
+    return __classPrivateFieldGet(this, _Money_subunits, "f");
+}, _Money_parseFactor = function _Money_parseFactor(factor) {
+    const str = String(factor);
+    const [base, exponent] = str.split('e');
+    const baseMatch = base.match(/^(-)?(\d+)(?:\.(\d+))?$/);
+    if (!baseMatch) {
+        // Fallback for unlikely cases, though String(number) should strictly produce valid formats
+        throw new TypeError(`Invalid factor format: ${str}`);
+    }
+    const [, sign, whole, frac = ''] = baseMatch;
+    const baseValue = BigInt((sign || '') + whole + frac);
+    const baseDecimals = frac.length;
+    const exp = exponent ? Number(exponent) : 0;
+    const netExp = exp - baseDecimals;
+    if (netExp >= 0) {
+        return { value: baseValue * 10n ** BigInt(netExp), scale: 0n };
+    }
+    else {
+        return { value: baseValue, scale: BigInt(-netExp) };
+    }
 }, _Money_roundedDivide = function _Money_roundedDivide(numerator, denominator) {
     if (denominator === 1n)
         return numerator;
@@ -353,22 +345,12 @@ _a = Money, _Money_value = new WeakMap(), _Money_currencyDef = new WeakMap(), _M
         return numerator < 0n ? quotient - 1n : quotient + 1n;
     }
     return quotient;
-}, _Money_createFromInternal = function _Money_createFromInternal(value, currency, currencyDef) {
-    const instance = Object.create(_a.prototype);
-    // Use Object.defineProperties for proper initialization
-    Object.defineProperties(instance, {
-        currency: { value: currency, enumerable: true, writable: false },
-    });
-    // Access private fields via the class mechanism
-    // This is a workaround since we can't directly set #private fields on Object.create instances
-    // Instead, we'll use a different approach: call a private static method
-    return new _a(currency, __classPrivateFieldGet(_a, _a, "m", _Money_formatInternalValue).call(_a, value, currencyDef));
-}, _Money_formatInternalValue = function _Money_formatInternalValue(value, currencyDef) {
+}, _Money_createFromSubunits = function _Money_createFromSubunits(subunits, currency, currencyDef) {
+    return new _a(currency, __classPrivateFieldGet(_a, _a, "m", _Money_formatSubunits).call(_a, subunits, currencyDef));
+}, _Money_formatSubunits = function _Money_formatSubunits(subunits, currencyDef) {
     const decimals = currencyDef.decimalDigits;
-    const divisor = 10n ** BigInt(INTERNAL_PRECISION - decimals);
-    const adjusted = __classPrivateFieldGet(_a, _a, "m", _Money_roundedDivide).call(_a, value, divisor);
-    const isNegative = adjusted < 0n;
-    const abs = isNegative ? -adjusted : adjusted;
+    const abs = subunits < 0n ? -subunits : subunits;
+    const isNegative = subunits < 0n;
     if (decimals === 0) {
         return `${isNegative ? '-' : ''}${abs}`;
     }

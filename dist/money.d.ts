@@ -59,13 +59,7 @@ export declare class Money<C extends string = string> {
      * Multiply by a factor.
      *
      * DESIGN: Rounds immediately after multiplication using banker's rounding
-     * (round half-to-even). This prevents the "split penny problem" where
-     * line-item rounding differs from deferred rounding:
-     *   Per-item: $1.65 tax × 10 items = $16.50 ✓ (matches receipt)
-     *   Deferred: 10 × $1.649175 = $16.49 ✗ (missing penny)
-     *
-     * For chained calculations without intermediate rounding, perform arithmetic
-     * in Number space first, then create a Money object with the final result.
+     * (round half-to-even). This prevents the "split penny problem".
      */
     multiply(factor: number): Money<C>;
     /**
@@ -74,10 +68,6 @@ export declare class Money<C extends string = string> {
      *
      * @param proportions - Array of proportions (e.g., [1, 1, 1] for three-way split)
      * @returns Array of Money objects that sum to the original amount
-     *
-     * @example
-     * new Money('USD', '100').allocate([1, 1, 1])
-     * // Returns: [Money('33.34'), Money('33.33'), Money('33.33')]
      */
     allocate(proportions: number[]): Money<C>[];
     /**
