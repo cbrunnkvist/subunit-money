@@ -347,5 +347,25 @@ describe('Property-based tests', () => {
         )
       )
     })
+
+    it('supports currencies with more than 8 decimal places', () => {
+      fc.assert(
+        fc.property(
+          fc.integer({ min: 9, max: 30 }),
+          fc.bigInt({ min: 0n, max: 10n ** 20n }),
+          (decimals, subunits) => {
+            clearCurrencies()
+            registerCurrency('HIGH', decimals)
+            
+            const money = Money.fromSubunits(subunits, 'HIGH')
+            const amount = money.amount
+            const backToSubunits = money.toSubunits()
+            const restored = Money.fromSubunits(backToSubunits, 'HIGH')
+            
+            return restored.equalTo(money) && backToSubunits === subunits
+          }
+        )
+      )
+    })
   })
 })

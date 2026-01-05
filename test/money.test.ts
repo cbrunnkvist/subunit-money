@@ -297,6 +297,7 @@ describe('Cryptocurrency support', () => {
     clearCurrencies()
     registerCurrency('BTC', 8)
     registerCurrency('ETH', 18)
+    registerCurrency('XNO', 30)
   })
 
   it('handles Bitcoin with 8 decimal places', () => {
@@ -309,6 +310,86 @@ describe('Cryptocurrency support', () => {
     const a = new Money('BTC', '1.00000000')
     const b = new Money('BTC', '0.00000001')
     assert.strictEqual(a.add(b).amount, '1.00000001')
+  })
+
+  it('handles Ethereum with 18 decimal places', () => {
+    const oneWei = new Money('ETH', '0.000000000000000001')
+    assert.strictEqual(oneWei.amount, '0.000000000000000001')
+    assert.strictEqual(oneWei.toSubunits(), 1n)
+
+    const oneEth = new Money('ETH', '1.000000000000000000')
+    assert.strictEqual(oneEth.toSubunits(), 10n ** 18n)
+  })
+
+  it('does arithmetic on Ethereum amounts', () => {
+    const a = new Money('ETH', '1.000000000000000000')
+    const b = new Money('ETH', '0.000000000000000001')
+    assert.strictEqual(a.add(b).amount, '1.000000000000000001')
+    assert.strictEqual(a.subtract(b).amount, '0.999999999999999999')
+  })
+
+  it('handles Nano with 30 decimal places', () => {
+    const oneRaw = new Money('XNO', '0.000000000000000000000000000001')
+    assert.strictEqual(oneRaw.amount, '0.000000000000000000000000000001')
+    assert.strictEqual(oneRaw.toSubunits(), 1n)
+
+    const oneNano = new Money('XNO', '1.000000000000000000000000000000')
+    assert.strictEqual(oneNano.toSubunits(), 10n ** 30n)
+  })
+
+  it('does arithmetic on Nano amounts', () => {
+    const a = new Money('XNO', '1.000000000000000000000000000000')
+    const b = new Money('XNO', '0.000000000000000000000000000001')
+    assert.strictEqual(a.add(b).amount, '1.000000000000000000000000000001')
+  })
+
+  it('preserves precision through subunit round-trip for high-decimal currencies', () => {
+    const ethAmount = Money.fromSubunits(123456789012345678n, 'ETH')
+    assert.strictEqual(ethAmount.toSubunits(), 123456789012345678n)
+
+    const xnoAmount = Money.fromSubunits(10n ** 30n + 1n, 'XNO')
+    assert.strictEqual(xnoAmount.toSubunits(), 10n ** 30n + 1n)
+  })
+
+  it('allocates high-decimal currencies without losing precision', () => {
+    const nano = new Money('XNO', '1.000000000000000000000000000000')
+    const parts = nano.allocate([1, 1, 1])
+    const sum = parts.reduce((a, b) => a.add(b))
+    assert.strictEqual(sum.amount, nano.amount)
+  })
+})
+
+describe('High-value fiat currencies', () => {
+  beforeEach(() => {
+    clearCurrencies()
+    registerCurrency('VND', 0)
+  })
+
+  it('handles Vietnamese Dong with 0 decimal places', () => {
+    const vnd = new Money('VND', '50000')
+    assert.strictEqual(vnd.amount, '50000')
+    assert.strictEqual(vnd.toSubunits(), 50000n)
+  })
+
+  it('handles house-price-scale amounts in VND', () => {
+    const housePrice = new Money('VND', '2000000000')
+    assert.strictEqual(housePrice.amount, '2000000000')
+    assert.strictEqual(housePrice.toSubunits(), 2000000000n)
+
+    const tax = housePrice.multiply(0.02)
+    assert.strictEqual(tax.amount, '40000000')
+  })
+
+  it('allocates large VND amounts correctly', () => {
+    const total = new Money('VND', '1000000000')
+    const parts = total.allocate([70, 20, 10])
+    
+    assert.strictEqual(parts[0].amount, '700000000')
+    assert.strictEqual(parts[1].amount, '200000000')
+    assert.strictEqual(parts[2].amount, '100000000')
+    
+    const sum = parts.reduce((a, b) => a.add(b))
+    assert.strictEqual(sum.amount, total.amount)
   })
 })
 

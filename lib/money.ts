@@ -101,7 +101,8 @@ export class Money<C extends string = string> {
    */
   get amount(): string {
     const decimals = this.#currencyDef.decimalDigits
-    const divisor = 10n ** BigInt(INTERNAL_PRECISION - decimals)
+    const effectivePrecision = Math.max(INTERNAL_PRECISION, decimals)
+    const divisor = 10n ** BigInt(effectivePrecision - decimals)
     const adjusted = this.#value / divisor
 
     const isNegative = adjusted < 0n
@@ -241,7 +242,8 @@ export class Money<C extends string = string> {
 
     // Work in currency subunits to avoid precision loss
     const decimals = this.#currencyDef.decimalDigits
-    const subunitMultiplier = 10n ** BigInt(INTERNAL_PRECISION - decimals)
+    const effectivePrecision = Math.max(INTERNAL_PRECISION, decimals)
+    const subunitMultiplier = 10n ** BigInt(effectivePrecision - decimals)
     const totalSubunits = this.#value / subunitMultiplier
 
     // Calculate base allocations
@@ -371,7 +373,8 @@ export class Money<C extends string = string> {
    */
   toSubunits(): bigint {
     const decimals = this.#currencyDef.decimalDigits
-    const divisor = 10n ** BigInt(INTERNAL_PRECISION - decimals)
+    const effectivePrecision = Math.max(INTERNAL_PRECISION, decimals)
+    const divisor = 10n ** BigInt(effectivePrecision - decimals)
     return this.#value / divisor
   }
 
@@ -395,7 +398,8 @@ export class Money<C extends string = string> {
     }
 
     const bigintSubunits = typeof subunits === 'number' ? BigInt(subunits) : subunits
-    const multiplier = 10n ** BigInt(INTERNAL_PRECISION - currencyDef.decimalDigits)
+    const effectivePrecision = Math.max(INTERNAL_PRECISION, currencyDef.decimalDigits)
+    const multiplier = 10n ** BigInt(effectivePrecision - currencyDef.decimalDigits)
     const internalValue = bigintSubunits * multiplier
 
     return Money.#createFromInternal(internalValue, currency, currencyDef)
@@ -450,7 +454,8 @@ export class Money<C extends string = string> {
    */
   static #formatInternalValue(value: bigint, currencyDef: CurrencyDefinition): string {
     const decimals = currencyDef.decimalDigits
-    const divisor = 10n ** BigInt(INTERNAL_PRECISION - decimals)
+    const effectivePrecision = Math.max(INTERNAL_PRECISION, decimals)
+    const divisor = 10n ** BigInt(effectivePrecision - decimals)
     const adjusted = Money.#roundedDivide(value, divisor)
 
     const isNegative = adjusted < 0n
