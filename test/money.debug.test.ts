@@ -1,38 +1,51 @@
 import assert from 'node:assert'
 import { describe, it, beforeEach } from 'node:test'
 import util from 'node:util'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   Money,
   registerCurrency,
   clearCurrencies,
+  loadCurrencyMap,
 } from '../lib/index.js'
 
-describe('Money Debug and Display', () => {
-  beforeEach(() => {
-    clearCurrencies()
-    registerCurrency('USD', 2)
-    registerCurrency('JPY', 0)
-    registerCurrency('XNO', 30, 2)
-    registerCurrency('BTC', 8) // No displayDecimals override
-  })
+const stockMap = JSON.parse(readFileSync(join(process.cwd(), 'currencymap.json'), 'utf8'))
 
-  describe('Property-based display (Browser/General)', () => {
-    it('provides displayAmount for standard fiat currencies', () => {
+describe('Money Debug and Display', () => {
+  describe('Stock ISO Currencies', () => {
+    beforeEach(() => {
+      clearCurrencies()
+      loadCurrencyMap(stockMap)
+    })
+
+    it('works for standard 2-decimal currencies (USD)', () => {
       const usd = new Money('USD', '10.5')
       assert.strictEqual(usd.amount, '10.50')
       assert.strictEqual(usd.displayAmount, '10.50')
-      
+      assert.strictEqual(usd.toString(), '10.50 USD')
+    })
+
+    it('works for 0-decimal currencies (JPY)', () => {
       const yen = new Money('JPY', '1000')
       assert.strictEqual(yen.amount, '1000')
       assert.strictEqual(yen.displayAmount, '1000')
+      assert.strictEqual(yen.toString(), '1000 JPY')
+    })
+  })
+
+  describe('Custom Registered Currencies', () => {
+    beforeEach(() => {
+      clearCurrencies()
+      registerCurrency('XNO', 30, 2)
+      registerCurrency('BTC', 8) // No displayDecimals override
     })
 
-    it('provides displayAmount for custom currencies with override', () => {
+    it('respects displayDecimals override while preserving full precision', () => {
       const xno = new Money('XNO', '1337')
-      // Full precision is preserved in .amount
       assert.strictEqual(xno.amount, '1337.000000000000000000000000000000')
-      // .displayAmount is trimmed to displayDecimals
       assert.strictEqual(xno.displayAmount, '1337.00')
+      assert.strictEqual(xno.toString(), '1337.00 XNO')
     })
 
     it('preserves significant digits even if they exceed displayAmount', () => {
@@ -47,13 +60,37 @@ describe('Money Debug and Display', () => {
     })
   })
 
+  describe('Overriding Stock Currencies', () => {
+    beforeEach(() => {
+      clearCurrencies()
+      loadCurrencyMap(stockMap)
+      // Override VND (normally 0 decimals) to 3 decimals with 1 display decimal
+      registerCurrency('VND', 3, 1)
+    })
+
+    it('uses the overridden definition for display and precision', () => {
+      const vnd = new Money('VND', '100.123')
+      assert.strictEqual(vnd.amount, '100.123')
+      assert.strictEqual(vnd.displayAmount, '100.123') // 3 sig digits > 1 preferred
+      
+      const vnd2 = new Money('VND', '100')
+      assert.strictEqual(vnd2.amount, '100.000')
+      assert.strictEqual(vnd2.displayAmount, '100.0') // Pad to 1 display decimal
+    })
+  })
+
   describe('Node.js Custom Inspection', () => {
+    beforeEach(() => {
+      clearCurrencies()
+      registerCurrency('XNO', 30, 2)
+      registerCurrency('USD', 2)
+    })
+
     it('uses the pretty format in util.inspect', () => {
       const xno = new Money('XNO', '1337')
       const inspected = util.inspect(xno)
       assert.ok(inspected.includes("amount: '1337.00'"))
       assert.ok(inspected.includes("currency: 'XNO'"))
-      // Should not show the 30-zero wall in the inspection
       assert.ok(!inspected.includes('000000000000000000000000000000'))
     })
 
@@ -61,23 +98,6 @@ describe('Money Debug and Display', () => {
       const xno = new Money('XNO', '1337.12345')
       const inspected = util.inspect(xno)
       assert.ok(inspected.includes("amount: '1337.12345'"))
-    })
-
-    it('works for standard currencies', () => {
-      const usd = new Money('USD', '19.99')
-      const inspected = util.inspect(usd)
-      assert.ok(inspected.includes("amount: '19.99'"))
-      assert.ok(inspected.includes("currency: 'USD'"))
-    })
-  })
-
-  describe('toString() consistency', () => {
-    it('uses displayAmount in toString()', () => {
-      const xno = new Money('XNO', '1337')
-      assert.strictEqual(xno.toString(), '1337.00 XNO')
-      
-      const usd = new Money('USD', '19.9')
-      assert.strictEqual(usd.toString(), '19.90 USD')
     })
   })
 })
