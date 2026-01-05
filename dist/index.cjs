@@ -139,6 +139,13 @@ var _Money = class _Money {
     __privateSet(this, _subunits, __privateMethod(this, _Money_instances, parseAmount_fn).call(this, amount));
   }
   /**
+   * Custom console inspection for Node.js.
+   * Shows the amount and currency instead of just the class name.
+   */
+  [/* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom")]() {
+    return `Money { amount: '${this.amount}', currency: '${this.currency}' }`;
+  }
+  /**
    * The amount as a formatted string with correct decimal places.
    * @example
    * new Money('USD', 19.9).amount // "19.90"

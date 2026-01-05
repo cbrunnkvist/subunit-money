@@ -86,6 +86,14 @@ export class Money<C extends string = string> {
   }
 
   /**
+   * Custom console inspection for Node.js.
+   * Shows the amount and currency instead of just the class name.
+   */
+  [Symbol.for('nodejs.util.inspect.custom')](): string {
+    return `Money { amount: '${this.amount}', currency: '${this.currency}' }`
+  }
+
+  /**
    * The amount as a formatted string with correct decimal places.
    * @example
    * new Money('USD', 19.9).amount // "19.90"
