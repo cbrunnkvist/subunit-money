@@ -38,13 +38,12 @@ TypeScript money library using BigInt subunits for precision-safe monetary calcu
 | `ExchangeRateService` | class | exchange-rate-service.ts | Rate storage, inverse calculation |
 | `MoneyConverter` | class | money-converter.ts | Cross-currency operations |
 | `CurrencyDefinition` | type | currency.ts | `{decimalDigits: number}` |
-| `INTERNAL_PRECISION` | const | money.ts | Minimum 8 decimals, scales up for high-decimal currencies |
 
 ## CONVENTIONS
 
 - **Immutable**: All Money operations return new instances
 - **String amounts**: `.amount` returns string (precision-safe for JSON/DB)
-- **BigInt internal**: `#value` private, effective precision = max(8, currency decimals)
+- **BigInt internal**: `#subunits` private, stores native currency subunits
 - **Banker's rounding**: IEEE 754-2008 round-half-to-even for all rounding operations
 - **Round-per-multiply**: Each `multiply()` rounds immediately (prevents split penny problem)
 - **ESM exports**: Use `.js` extension in imports (TypeScript compiles to ESM)
@@ -122,14 +121,13 @@ During the v2 BigInt rewrite, a fixed `INTERNAL_PRECISION = 8` was introduced. F
 
 The original es-money (v1) stored native subunits directly and had no such limit. The design drifted during BigInt adoption.
 
-**The Fix:**
-Use `Math.max(INTERNAL_PRECISION, decimals)` as effective precision in all 5 locations. Zero API changes, zero principle compromises. Parsing already handled high decimals correctly (padEnd doesn't truncate).
+**The Fix (v3 Option A - True Subunit Storage):**
+We overhauled the internal storage to keep "true subunits" (cents, wei, raw) directly in `#subunits`. This removed `INTERNAL_PRECISION` entirely, simplifying the logic and eliminating "negative exponent" bugs structurally.
+
+We also upgraded `multiply()` to parse factors via `String()` conversion, ensuring that inputs like `0.545` are treated as exactly `0.545` (avoiding floating-point epsilon noise that broke Banker's Rounding tests).
 
 **Test Coverage Added:**
 - Property-based test: currencies with 9-30 decimal places
 - ETH (18 decimals): DeFi standard
 - XNO (30 decimals): extreme precision
 - VND (0 decimals, large values): high-value fiat
-
-**v3 Consideration:**
-Return to true subunit storage (like v1) rather than fixed-point. See TODO.md.

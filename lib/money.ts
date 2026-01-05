@@ -16,10 +16,6 @@ import {
 } from './errors.js'
 import { getCurrency, hasCurrency, type CurrencyDefinition } from './currency.js'
 
-// Internal precision: 8 decimal places (supports Bitcoin and most cryptocurrencies)
-const INTERNAL_PRECISION = 8
-const PRECISION_MULTIPLIER = 10n ** BigInt(INTERNAL_PRECISION)
-
 /**
  * Serialized form of a Money object, safe for JSON.
  */
@@ -42,8 +38,8 @@ export interface MoneyObject<C extends string = string> {
 export class Money<C extends string = string> {
   readonly currency: C
 
-  // Private BigInt storage - not exposed to prevent precision leaks
-  readonly #value: bigint
+  // Private BigInt storage - stores currency native subunits directly
+  readonly #subunits: bigint
   readonly #currencyDef: CurrencyDefinition
 
   /**
@@ -63,17 +59,15 @@ export class Money<C extends string = string> {
 
     this.currency = currency
     this.#currencyDef = currencyDef
-    this.#value = this.#parseAmount(amount)
+    this.#subunits = this.#parseAmount(amount)
   }
 
   /**
-   * Parse an amount into internal BigInt representation.
+   * Parse an amount into native subunits.
    */
   #parseAmount(amount: number | string): bigint {
-    // Convert to string for consistent parsing
     const str = typeof amount === 'number' ? String(amount) : amount
 
-    // Validate format: optional minus, digits, optional decimal part
     const match = str.match(/^(-)?(\d+)(?:\.(\d+))?$/)
     if (!match) {
       throw new AmountError(amount)
@@ -81,13 +75,11 @@ export class Money<C extends string = string> {
 
     const [, sign, whole, frac = ''] = match
 
-    // Check decimal places don't exceed currency limit
     if (frac.length > this.#currencyDef.decimalDigits) {
       throw new SubunitError(this.currency, this.#currencyDef.decimalDigits)
     }
 
-    // Pad fraction to internal precision and combine
-    const paddedFrac = frac.padEnd(INTERNAL_PRECISION, '0')
+    const paddedFrac = frac.padEnd(this.#currencyDef.decimalDigits, '0')
     const combined = BigInt(whole + paddedFrac)
 
     return sign === '-' ? -combined : combined
@@ -101,12 +93,8 @@ export class Money<C extends string = string> {
    */
   get amount(): string {
     const decimals = this.#currencyDef.decimalDigits
-    const effectivePrecision = Math.max(INTERNAL_PRECISION, decimals)
-    const divisor = 10n ** BigInt(effectivePrecision - decimals)
-    const adjusted = this.#value / divisor
-
-    const isNegative = adjusted < 0n
-    const abs = isNegative ? -adjusted : adjusted
+    const abs = this.#subunits < 0n ? -this.#subunits : this.#subunits
+    const isNegative = this.#subunits < 0n
 
     if (decimals === 0) {
       return `${isNegative ? '-' : ''}${abs}`
@@ -133,7 +121,7 @@ export class Money<C extends string = string> {
    * Get the internal BigInt value (for operations).
    */
   #getInternalValue(): bigint {
-    return this.#value
+    return this.#subunits
   }
 
   // ============ Arithmetic Operations ============
@@ -144,8 +132,8 @@ export class Money<C extends string = string> {
    */
   add(other: Money<C>): Money<C> {
     this.#assertSameCurrency(other)
-    const result = this.#value + other.#getInternalValue()
-    return Money.#createFromInternal(result, this.currency, this.#currencyDef)
+    const result = this.#subunits + other.#getInternalValue()
+    return Money.#createFromSubunits(result, this.currency, this.#currencyDef)
   }
 
   /**
@@ -154,39 +142,61 @@ export class Money<C extends string = string> {
    */
   subtract(other: Money<C>): Money<C> {
     this.#assertSameCurrency(other)
-    const result = this.#value - other.#getInternalValue()
-    return Money.#createFromInternal(result, this.currency, this.#currencyDef)
+    const result = this.#subunits - other.#getInternalValue()
+    return Money.#createFromSubunits(result, this.currency, this.#currencyDef)
   }
 
   /**
    * Multiply by a factor.
    *
    * DESIGN: Rounds immediately after multiplication using banker's rounding
-   * (round half-to-even). This prevents the "split penny problem" where
-   * line-item rounding differs from deferred rounding:
-   *   Per-item: $1.65 tax × 10 items = $16.50 ✓ (matches receipt)
-   *   Deferred: 10 × $1.649175 = $16.49 ✗ (missing penny)
-   *
-   * For chained calculations without intermediate rounding, perform arithmetic
-   * in Number space first, then create a Money object with the final result.
+   * (round half-to-even). This prevents the "split penny problem".
    */
   multiply(factor: number): Money<C> {
     if (typeof factor !== 'number' || !Number.isFinite(factor)) {
       throw new TypeError(`Factor must be a finite number, got: ${factor}`)
     }
 
-    const factorStr = factor.toFixed(INTERNAL_PRECISION)
-    const factorBigInt = BigInt(factorStr.replace('.', ''))
+    const { value: factorValue, scale } = Money.#parseFactor(factor)
+    const product = this.#subunits * factorValue
+    const divisor = 10n ** scale
+    
+    const result = Money.#roundedDivide(product, divisor)
+    return Money.#createFromSubunits(result, this.currency, this.#currencyDef)
+  }
 
-    const product = this.#value * factorBigInt
-    const result = Money.#roundedDivide(product, PRECISION_MULTIPLIER)
-    return Money.#createFromInternal(result, this.currency, this.#currencyDef)
+  /**
+   * Helper to parse a number factor into a BigInt and a power-of-10 scale.
+   * Uses String() conversion to avoid floating-point epsilon noise,
+   * ensuring that 0.545 is treated as exactly 0.545, not 0.54500000000000004.
+   */
+  static #parseFactor(factor: number): { value: bigint, scale: bigint } {
+    const str = String(factor)
+    const [base, exponent] = str.split('e')
+    
+    const baseMatch = base.match(/^(-)?(\d+)(?:\.(\d+))?$/)
+    if (!baseMatch) {
+      // Fallback for unlikely cases, though String(number) should strictly produce valid formats
+      throw new TypeError(`Invalid factor format: ${str}`)
+    }
+    
+    const [, sign, whole, frac = ''] = baseMatch
+    const baseValue = BigInt((sign || '') + whole + frac)
+    const baseDecimals = frac.length
+    
+    const exp = exponent ? Number(exponent) : 0
+    const netExp = exp - baseDecimals
+    
+    if (netExp >= 0) {
+      return { value: baseValue * 10n ** BigInt(netExp), scale: 0n }
+    } else {
+      return { value: baseValue, scale: BigInt(-netExp) }
+    }
   }
 
   /**
    * Divide with banker's rounding (round half-to-even).
    * IEEE 754-2008 recommended default rounding mode for financial calculations.
-   * Eliminates systematic bias that half-up rounding introduces.
    */
   static #roundedDivide(numerator: bigint, denominator: bigint): bigint {
     if (denominator === 1n) return numerator
@@ -219,10 +229,6 @@ export class Money<C extends string = string> {
    *
    * @param proportions - Array of proportions (e.g., [1, 1, 1] for three-way split)
    * @returns Array of Money objects that sum to the original amount
-   *
-   * @example
-   * new Money('USD', '100').allocate([1, 1, 1])
-   * // Returns: [Money('33.34'), Money('33.33'), Money('33.33')]
    */
   allocate(proportions: number[]): Money<C>[] {
     if (!Array.isArray(proportions) || proportions.length === 0) {
@@ -240,11 +246,7 @@ export class Money<C extends string = string> {
       throw new TypeError('Sum of proportions must be positive')
     }
 
-    // Work in currency subunits to avoid precision loss
-    const decimals = this.#currencyDef.decimalDigits
-    const effectivePrecision = Math.max(INTERNAL_PRECISION, decimals)
-    const subunitMultiplier = 10n ** BigInt(effectivePrecision - decimals)
-    const totalSubunits = this.#value / subunitMultiplier
+    const totalSubunits = this.#subunits
 
     // Calculate base allocations
     const allocations: bigint[] = proportions.map((p) => {
@@ -267,8 +269,7 @@ export class Money<C extends string = string> {
 
     // Convert back to Money objects
     return allocations.map((subunits) => {
-      const internalValue = subunits * subunitMultiplier
-      return Money.#createFromInternal(internalValue, this.currency, this.#currencyDef)
+      return Money.#createFromSubunits(subunits, this.currency, this.#currencyDef)
     })
   }
 
@@ -280,7 +281,7 @@ export class Money<C extends string = string> {
    */
   equalTo(other: Money<C>): boolean {
     this.#assertSameCurrency(other)
-    return this.#value === other.#getInternalValue()
+    return this.#subunits === other.#getInternalValue()
   }
 
   /**
@@ -289,7 +290,7 @@ export class Money<C extends string = string> {
    */
   greaterThan(other: Money<C>): boolean {
     this.#assertSameCurrency(other)
-    return this.#value > other.#getInternalValue()
+    return this.#subunits > other.#getInternalValue()
   }
 
   /**
@@ -298,7 +299,7 @@ export class Money<C extends string = string> {
    */
   lessThan(other: Money<C>): boolean {
     this.#assertSameCurrency(other)
-    return this.#value < other.#getInternalValue()
+    return this.#subunits < other.#getInternalValue()
   }
 
   /**
@@ -307,7 +308,7 @@ export class Money<C extends string = string> {
    */
   greaterThanOrEqual(other: Money<C>): boolean {
     this.#assertSameCurrency(other)
-    return this.#value >= other.#getInternalValue()
+    return this.#subunits >= other.#getInternalValue()
   }
 
   /**
@@ -316,28 +317,28 @@ export class Money<C extends string = string> {
    */
   lessThanOrEqual(other: Money<C>): boolean {
     this.#assertSameCurrency(other)
-    return this.#value <= other.#getInternalValue()
+    return this.#subunits <= other.#getInternalValue()
   }
 
   /**
    * Check if this amount is zero.
    */
   isZero(): boolean {
-    return this.#value === 0n
+    return this.#subunits === 0n
   }
 
   /**
    * Check if this amount is positive (greater than zero).
    */
   isPositive(): boolean {
-    return this.#value > 0n
+    return this.#subunits > 0n
   }
 
   /**
    * Check if this amount is negative (less than zero).
    */
   isNegative(): boolean {
-    return this.#value < 0n
+    return this.#subunits < 0n
   }
 
   // ============ Serialization ============
@@ -372,10 +373,7 @@ export class Money<C extends string = string> {
    * Useful for database storage (Stripe-style integer storage).
    */
   toSubunits(): bigint {
-    const decimals = this.#currencyDef.decimalDigits
-    const effectivePrecision = Math.max(INTERNAL_PRECISION, decimals)
-    const divisor = 10n ** BigInt(effectivePrecision - decimals)
-    return this.#value / divisor
+    return this.#subunits
   }
 
   // ============ Static Factory Methods ============
@@ -398,11 +396,7 @@ export class Money<C extends string = string> {
     }
 
     const bigintSubunits = typeof subunits === 'number' ? BigInt(subunits) : subunits
-    const effectivePrecision = Math.max(INTERNAL_PRECISION, currencyDef.decimalDigits)
-    const multiplier = 10n ** BigInt(effectivePrecision - currencyDef.decimalDigits)
-    const internalValue = bigintSubunits * multiplier
-
-    return Money.#createFromInternal(internalValue, currency, currencyDef)
+    return Money.#createFromSubunits(bigintSubunits, currency, currencyDef)
   }
 
   /**
@@ -430,36 +424,21 @@ export class Money<C extends string = string> {
   /**
    * Internal factory that bypasses parsing.
    */
-  static #createFromInternal<C extends string>(
-    value: bigint,
+  static #createFromSubunits<C extends string>(
+    subunits: bigint,
     currency: C,
     currencyDef: CurrencyDefinition
   ): Money<C> {
-    const instance = Object.create(Money.prototype) as Money<C>
-
-    // Use Object.defineProperties for proper initialization
-    Object.defineProperties(instance, {
-      currency: { value: currency, enumerable: true, writable: false },
-    })
-
-    // Access private fields via the class mechanism
-    // This is a workaround since we can't directly set #private fields on Object.create instances
-    // Instead, we'll use a different approach: call a private static method
-
-    return new Money(currency, Money.#formatInternalValue(value, currencyDef))
+    return new Money(currency, Money.#formatSubunits(subunits, currencyDef))
   }
 
   /**
-   * Format internal BigInt value to string amount with proper rounding.
+   * Format subunits to string amount.
    */
-  static #formatInternalValue(value: bigint, currencyDef: CurrencyDefinition): string {
+  static #formatSubunits(subunits: bigint, currencyDef: CurrencyDefinition): string {
     const decimals = currencyDef.decimalDigits
-    const effectivePrecision = Math.max(INTERNAL_PRECISION, decimals)
-    const divisor = 10n ** BigInt(effectivePrecision - decimals)
-    const adjusted = Money.#roundedDivide(value, divisor)
-
-    const isNegative = adjusted < 0n
-    const abs = isNegative ? -adjusted : adjusted
+    const abs = subunits < 0n ? -subunits : subunits
+    const isNegative = subunits < 0n
 
     if (decimals === 0) {
       return `${isNegative ? '-' : ''}${abs}`
