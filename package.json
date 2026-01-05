@@ -23,6 +23,7 @@
     "lint": "tsc --noEmit",
     "check-clean": "git diff --quiet && git diff --cached --quiet",
     "preversion": "npm run check-clean && npm test",
+    "version": "npm run build && git add dist",
     "postversion": "git push && git push --tags",
     "prepublishOnly": "npm run check-clean && npm run build",
     "release:patch": "npm version patch && npm publish",
