@@ -2,7 +2,8 @@ import assert from 'node:assert'
 import { describe, it, beforeEach } from 'node:test'
 import util from 'node:util'
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   Money,
   registerCurrency,
@@ -10,7 +11,9 @@ import {
   loadCurrencyMap,
 } from '../lib/index.js'
 
-const stockMap = JSON.parse(readFileSync(join(process.cwd(), 'currencymap.json'), 'utf8'))
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const rootDir = join(__dirname, '..')
+const stockMap = JSON.parse(readFileSync(join(rootDir, 'currencymap.json'), 'utf8'))
 
 describe('Money Debug and Display', () => {
   describe('Stock ISO Currencies', () => {

@@ -2,8 +2,12 @@ import assert from 'node:assert'
 import { describe, it } from 'node:test'
 import { execSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const rootDir = join(__dirname, '..')
 
 /**
  * Integration test to verify that the library is correctly packaged
@@ -14,12 +18,12 @@ import { tmpdir } from 'node:os'
 describe('Packaging Integration (Smoke Test)', () => {
   it('should be consumable via both CJS and ESM after npm pack', () => {
     // 1. Build the project
-    execSync('npm run build', { stdio: 'ignore' })
+    execSync('npm run build', { cwd: rootDir, stdio: 'ignore' })
 
     // 2. Create a tarball (simulates what gets uploaded to npm)
-    const packOutput = execSync('npm pack', { encoding: 'utf8' }).trim()
+    const packOutput = execSync('npm pack', { cwd: rootDir, encoding: 'utf8' }).trim()
     const tarballName = packOutput.split('\n').pop()!
-    const tarballPath = join(process.cwd(), tarballName)
+    const tarballPath = join(rootDir, tarballName)
 
     // 3. Create a temporary consumer project
     const tempDir = mkdtempSync(join(tmpdir(), 'subunit-money-smoke-'))
