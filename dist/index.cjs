@@ -385,7 +385,7 @@ parseAmount_fn = function(amount) {
 };
 _Money_static = new WeakSet();
 formatForDisplay_fn = function(fullAmount, currencyDef) {
-  const preferredDecimals = currencyDef.displayDecimals ?? Math.min(currencyDef.decimalDigits, 2);
+  const preferredDecimals = currencyDef.displayDecimals ?? currencyDef.decimalDigits;
   const [whole, frac = ""] = fullAmount.split(".");
   if (!frac) return whole;
   let trimmedFrac = frac.replace(/0+$/, "");

@@ -103,8 +103,7 @@ export class Money<C extends string = string> {
    * Format the full amount string for display purposes.
    */
   static #formatForDisplay(fullAmount: string, currencyDef: CurrencyDefinition): string {
-    // Smart default: use displayDecimals if provided, otherwise cap padding at 2 (but preserve sig digits)
-    const preferredDecimals = currencyDef.displayDecimals ?? Math.min(currencyDef.decimalDigits, 2)
+    const preferredDecimals = currencyDef.displayDecimals ?? currencyDef.decimalDigits
 
     // Split into whole and fractional parts
     const [whole, frac = ''] = fullAmount.split('.')
