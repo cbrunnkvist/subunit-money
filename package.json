@@ -2,8 +2,9 @@
   "name": "subunit-money",
   "version": "3.1.0",
   "description": "A type-safe value object for monetary amounts with currency conversion support",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "type": "module",
   "exports": {
     ".": {
@@ -12,8 +13,8 @@
         "default": "./dist/index.js"
       },
       "require": {
-        "types": "./dist/cjs/index.d.ts",
-        "default": "./dist/cjs/index.js"
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
       }
     }
   },
@@ -23,7 +24,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc && tsc --module commonjs --outDir dist/cjs",
+    "build": "tsup",
     "test": "node --import tsx --test test/*.test.ts",
     "lint": "tsc --noEmit",
     "check-clean": "git diff --quiet && git diff --cached --quiet",
@@ -58,6 +59,7 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "fast-check": "^4.5.3",
+    "tsup": "^8.5.1",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   }
