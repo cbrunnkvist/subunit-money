@@ -38,7 +38,7 @@ export interface MoneyObject<C extends string = string> {
 export class Money<C extends string = string> {
   readonly currency: C
   readonly amount: string
-  readonly formatted: string
+  readonly displayAmount: string
 
   // Private BigInt storage - stores currency native subunits directly
   readonly #subunits: bigint
@@ -65,7 +65,7 @@ export class Money<C extends string = string> {
     
     // Pre-calculate string representations for better DX and performance
     this.amount = Money.#formatSubunits(this.#subunits, currencyDef)
-    this.formatted = Money.#formatForDisplay(this.amount, currencyDef)
+    this.displayAmount = Money.#formatForDisplay(this.amount, currencyDef)
   }
 
   /**
@@ -96,7 +96,7 @@ export class Money<C extends string = string> {
    * Shows the amount and currency instead of just the class name.
    */
   [Symbol.for('nodejs.util.inspect.custom')](): string {
-    return `Money { amount: '${this.formatted}', currency: '${this.currency}' }`
+    return `Money { amount: '${this.displayAmount}', currency: '${this.currency}' }`
   }
 
   /**
@@ -382,7 +382,7 @@ export class Money<C extends string = string> {
    * Convert to string representation.
    */
   toString(): string {
-    return `${this.formatted} ${this.currency}`
+    return `${this.displayAmount} ${this.currency}`
   }
 
   /**

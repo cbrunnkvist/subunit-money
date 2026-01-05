@@ -29,7 +29,7 @@ declare class Money<C extends string = string> {
     #private;
     readonly currency: C;
     readonly amount: string;
-    readonly formatted: string;
+    readonly displayAmount: string;
     /**
      * Create a new Money instance.
      *

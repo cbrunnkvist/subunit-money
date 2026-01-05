@@ -139,14 +139,14 @@ var _Money = class _Money {
     __privateSet(this, _currencyDef, currencyDef);
     __privateSet(this, _subunits, __privateMethod(this, _Money_instances, parseAmount_fn).call(this, amount));
     this.amount = __privateMethod(_a = _Money, _Money_static, formatSubunits_fn).call(_a, __privateGet(this, _subunits), currencyDef);
-    this.formatted = __privateMethod(_b = _Money, _Money_static, formatForDisplay_fn).call(_b, this.amount, currencyDef);
+    this.displayAmount = __privateMethod(_b = _Money, _Money_static, formatForDisplay_fn).call(_b, this.amount, currencyDef);
   }
   /**
    * Custom console inspection for Node.js.
    * Shows the amount and currency instead of just the class name.
    */
   [/* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom")]() {
-    return `Money { amount: '${this.formatted}', currency: '${this.currency}' }`;
+    return `Money { amount: '${this.displayAmount}', currency: '${this.currency}' }`;
   }
   // ============ Arithmetic Operations ============
   /**
@@ -305,7 +305,7 @@ var _Money = class _Money {
    * Convert to string representation.
    */
   toString() {
-    return `${this.formatted} ${this.currency}`;
+    return `${this.displayAmount} ${this.currency}`;
   }
   /**
    * Get the amount as a number (may lose precision for large values).
