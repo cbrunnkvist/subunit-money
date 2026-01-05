@@ -108,7 +108,7 @@ var _Money = class _Money {
    * Shows the amount and currency instead of just the class name.
    */
   [/* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom")]() {
-    return `Money { amount: '${this.displayAmount}', currency: '${this.currency}' }`;
+    return `Money { displayAmount: '${this.displayAmount}', currency: '${this.currency}', amount: '${this.amount}' }`;
   }
   // ============ Arithmetic Operations ============
   /**
@@ -347,10 +347,7 @@ parseAmount_fn = function(amount) {
 };
 _Money_static = new WeakSet();
 formatForDisplay_fn = function(fullAmount, currencyDef) {
-  const preferredDecimals = currencyDef.displayDecimals ?? currencyDef.decimalDigits;
-  if (preferredDecimals === currencyDef.decimalDigits) {
-    return fullAmount;
-  }
+  const preferredDecimals = currencyDef.displayDecimals ?? Math.min(currencyDef.decimalDigits, 2);
   const [whole, frac = ""] = fullAmount.split(".");
   if (!frac) return whole;
   let trimmedFrac = frac.replace(/0+$/, "");

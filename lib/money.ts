@@ -96,19 +96,15 @@ export class Money<C extends string = string> {
    * Shows the amount and currency instead of just the class name.
    */
   [Symbol.for('nodejs.util.inspect.custom')](): string {
-    return `Money { amount: '${this.displayAmount}', currency: '${this.currency}' }`
+    return `Money { displayAmount: '${this.displayAmount}', currency: '${this.currency}', amount: '${this.amount}' }`
   }
 
   /**
    * Format the full amount string for display purposes.
    */
   static #formatForDisplay(fullAmount: string, currencyDef: CurrencyDefinition): string {
-    const preferredDecimals = currencyDef.displayDecimals ?? currencyDef.decimalDigits
-
-    // If we want full precision anyway, just return it
-    if (preferredDecimals === currencyDef.decimalDigits) {
-      return fullAmount
-    }
+    // Smart default: use displayDecimals if provided, otherwise cap padding at 2 (but preserve sig digits)
+    const preferredDecimals = currencyDef.displayDecimals ?? Math.min(currencyDef.decimalDigits, 2)
 
     // Split into whole and fractional parts
     const [whole, frac = ''] = fullAmount.split('.')

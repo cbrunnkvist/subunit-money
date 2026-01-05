@@ -56,10 +56,10 @@ describe('Money Debug and Display', () => {
       assert.strictEqual(xno.displayAmount, '1337.12345')
     })
 
-    it('defaults displayAmount to full precision if no override is provided', () => {
+    it('uses smart default (2 decimals) if no override is provided', () => {
       const btc = new Money('BTC', '1.5')
       assert.strictEqual(btc.amount, '1.50000000')
-      assert.strictEqual(btc.displayAmount, '1.50000000')
+      assert.strictEqual(btc.displayAmount, '1.50')
     })
   })
 
@@ -86,21 +86,28 @@ describe('Money Debug and Display', () => {
     beforeEach(() => {
       clearCurrencies()
       registerCurrency('XNO', 30, 2)
+      registerCurrency('BTC', 8) // No override, should default to 2
       registerCurrency('USD', 2)
     })
 
     it('uses the pretty format in util.inspect', () => {
       const xno = new Money('XNO', '1337')
       const inspected = util.inspect(xno)
-      assert.ok(inspected.includes("amount: '1337.00'"))
+      assert.ok(inspected.includes("displayAmount: '1337.00'"))
       assert.ok(inspected.includes("currency: 'XNO'"))
-      assert.ok(!inspected.includes('000000000000000000000000000000'))
+      assert.ok(inspected.includes("amount: '1337.000000000000000000000000000000'"))
+    })
+
+    it('uses smart default (2 decimals) for inspection if no override provided', () => {
+      const btc = new Money('BTC', '1.5')
+      const inspected = util.inspect(btc)
+      assert.ok(inspected.includes("displayAmount: '1.50'"))
     })
 
     it('shows full precision in inspection if digits are significant', () => {
       const xno = new Money('XNO', '1337.12345')
       const inspected = util.inspect(xno)
-      assert.ok(inspected.includes("amount: '1337.12345'"))
+      assert.ok(inspected.includes("displayAmount: '1337.12345'"))
     })
   })
 })
