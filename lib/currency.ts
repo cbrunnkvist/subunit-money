@@ -6,6 +6,7 @@
 export interface CurrencyDefinition {
   code: string
   decimalDigits: number
+  displayDecimals?: number
 }
 
 // Internal registry - mutable for registerCurrency()
@@ -15,9 +16,10 @@ const currencies: Map<string, CurrencyDefinition> = new Map()
  * Register a new currency or update an existing one.
  * @param code - ISO 4217 currency code (e.g., 'USD', 'EUR', 'BTC')
  * @param decimalDigits - Number of decimal places (e.g., 2 for USD, 8 for BTC)
+ * @param displayDecimals - Optional number of decimal places to use for display/formatting (defaults to decimalDigits)
  */
-export function registerCurrency(code: string, decimalDigits: number): void {
-  currencies.set(code, { code, decimalDigits })
+export function registerCurrency(code: string, decimalDigits: number, displayDecimals?: number): void {
+  currencies.set(code, { code, decimalDigits, displayDecimals })
 }
 
 /**

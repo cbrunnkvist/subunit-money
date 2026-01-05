@@ -54,8 +54,8 @@ var ExchangeRateError = class _ExchangeRateError extends Error {
 
 // lib/currency.ts
 var currencies = /* @__PURE__ */ new Map();
-function registerCurrency(code, decimalDigits) {
-  currencies.set(code, { code, decimalDigits });
+function registerCurrency(code, decimalDigits, displayDecimals) {
+  currencies.set(code, { code, decimalDigits, displayDecimals });
 }
 function getCurrency(code) {
   return currencies.get(code);
@@ -105,7 +105,35 @@ var _Money = class _Money {
    * Shows the amount and currency instead of just the class name.
    */
   [/* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom")]() {
-    return `Money { amount: '${this.amount}', currency: '${this.currency}' }`;
+    return `Money { amount: '${this.displayAmount}', currency: '${this.currency}' }`;
+  }
+  /**
+   * The amount formatted for display.
+   * Respects the currency's `displayDecimals` setting.
+   * - Removes trailing zeros beyond the display precision.
+   * - Keeps significant digits even if they exceed display precision.
+   * 
+   * @example
+   * // Currency with decimals=30, displayDecimals=2
+   * new Money('XNO', '100').displayAmount // "100.00"
+   * new Money('XNO', '100.1234').displayAmount // "100.1234"
+   */
+  get displayAmount() {
+    const fullAmount = this.amount;
+    const preferredDecimals = __privateGet(this, _currencyDef).displayDecimals ?? __privateGet(this, _currencyDef).decimalDigits;
+    if (preferredDecimals === __privateGet(this, _currencyDef).decimalDigits) {
+      return fullAmount;
+    }
+    const [whole, frac = ""] = fullAmount.split(".");
+    if (!frac) return whole;
+    let trimmedFrac = frac.replace(/0+$/, "");
+    if (trimmedFrac.length < preferredDecimals) {
+      trimmedFrac = trimmedFrac.padEnd(preferredDecimals, "0");
+    }
+    if (trimmedFrac === "" && preferredDecimals === 0) {
+      return whole;
+    }
+    return `${whole}.${trimmedFrac}`;
   }
   /**
    * The amount as a formatted string with correct decimal places.
@@ -283,7 +311,7 @@ var _Money = class _Money {
    * Convert to string representation.
    */
   toString() {
-    return `${this.amount} ${this.currency}`;
+    return `${this.displayAmount} ${this.currency}`;
   }
   /**
    * Get the amount as a number (may lose precision for large values).

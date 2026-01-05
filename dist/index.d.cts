@@ -39,6 +39,18 @@ declare class Money<C extends string = string> {
      */
     constructor(currency: C, amount: number | string);
     /**
+     * The amount formatted for display.
+     * Respects the currency's `displayDecimals` setting.
+     * - Removes trailing zeros beyond the display precision.
+     * - Keeps significant digits even if they exceed display precision.
+     *
+     * @example
+     * // Currency with decimals=30, displayDecimals=2
+     * new Money('XNO', '100').displayAmount // "100.00"
+     * new Money('XNO', '100.1234').displayAmount // "100.1234"
+     */
+    get displayAmount(): string;
+    /**
      * The amount as a formatted string with correct decimal places.
      * @example
      * new Money('USD', 19.9).amount // "19.90"
@@ -384,13 +396,15 @@ declare class ExchangeRateError extends Error {
 interface CurrencyDefinition {
     code: string;
     decimalDigits: number;
+    displayDecimals?: number;
 }
 /**
  * Register a new currency or update an existing one.
  * @param code - ISO 4217 currency code (e.g., 'USD', 'EUR', 'BTC')
  * @param decimalDigits - Number of decimal places (e.g., 2 for USD, 8 for BTC)
+ * @param displayDecimals - Optional number of decimal places to use for display/formatting (defaults to decimalDigits)
  */
-declare function registerCurrency(code: string, decimalDigits: number): void;
+declare function registerCurrency(code: string, decimalDigits: number, displayDecimals?: number): void;
 /**
  * Get a currency definition by code.
  * @returns The currency definition, or undefined if not registered

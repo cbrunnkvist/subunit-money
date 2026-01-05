@@ -90,7 +90,51 @@ export class Money<C extends string = string> {
    * Shows the amount and currency instead of just the class name.
    */
   [Symbol.for('nodejs.util.inspect.custom')](): string {
-    return `Money { amount: '${this.amount}', currency: '${this.currency}' }`
+    return `Money { amount: '${this.displayAmount}', currency: '${this.currency}' }`
+  }
+
+  /**
+   * The amount formatted for display.
+   * Respects the currency's `displayDecimals` setting.
+   * - Removes trailing zeros beyond the display precision.
+   * - Keeps significant digits even if they exceed display precision.
+   * 
+   * @example
+   * // Currency with decimals=30, displayDecimals=2
+   * new Money('XNO', '100').displayAmount // "100.00"
+   * new Money('XNO', '100.1234').displayAmount // "100.1234"
+   */
+  get displayAmount(): string {
+    const fullAmount = this.amount
+    const preferredDecimals = this.#currencyDef.displayDecimals ?? this.#currencyDef.decimalDigits
+
+    // If we want full precision anyway, just return it
+    if (preferredDecimals === this.#currencyDef.decimalDigits) {
+      return fullAmount
+    }
+
+    // Split into whole and fractional parts
+    const [whole, frac = ''] = fullAmount.split('.')
+
+    if (!frac) return whole
+
+    // Trim trailing zeros
+    let trimmedFrac = frac.replace(/0+$/, '')
+
+    // Pad back to preferred decimals if needed
+    if (trimmedFrac.length < preferredDecimals) {
+      trimmedFrac = trimmedFrac.padEnd(preferredDecimals, '0')
+    }
+
+    // If fractional part is empty and we want 0 decimals, return whole
+    if (trimmedFrac === '' && preferredDecimals === 0) {
+      return whole
+    }
+    
+    // If fractional part became empty but we want decimals (e.g. 2), it was handled by padEnd above
+    // except if trimmedFrac was empty string. padEnd on empty string works.
+    
+    return `${whole}.${trimmedFrac}`
   }
 
   /**
@@ -365,7 +409,7 @@ export class Money<C extends string = string> {
    * Convert to string representation.
    */
   toString(): string {
-    return `${this.amount} ${this.currency}`
+    return `${this.displayAmount} ${this.currency}`
   }
 
   /**
