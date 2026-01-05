@@ -1,3 +1,4 @@
+"use strict";
 /**
  * Money - An immutable value object for monetary amounts.
  *
@@ -19,8 +20,10 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
     return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
 var _Money_instances, _a, _Money_subunits, _Money_currencyDef, _Money_parseAmount, _Money_assertSameCurrency, _Money_getInternalValue, _Money_parseFactor, _Money_roundedDivide, _Money_createFromSubunits, _Money_formatSubunits;
-import { CurrencyMismatchError, CurrencyUnknownError, SubunitError, AmountError, } from './errors.js';
-import { getCurrency } from './currency.js';
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Money = void 0;
+const errors_js_1 = require("./errors.js");
+const currency_js_1 = require("./currency.js");
 /**
  * Money class - represents a monetary amount in a specific currency.
  *
@@ -32,7 +35,7 @@ import { getCurrency } from './currency.js';
  * const total = price.add(tax)
  * console.log(total.amount) // "21.59"
  */
-export class Money {
+class Money {
     /**
      * Create a new Money instance.
      *
@@ -47,9 +50,9 @@ export class Money {
         // Private BigInt storage - stores currency native subunits directly
         _Money_subunits.set(this, void 0);
         _Money_currencyDef.set(this, void 0);
-        const currencyDef = getCurrency(currency);
+        const currencyDef = (0, currency_js_1.getCurrency)(currency);
         if (!currencyDef) {
-            throw new CurrencyUnknownError(currency);
+            throw new errors_js_1.CurrencyUnknownError(currency);
         }
         this.currency = currency;
         __classPrivateFieldSet(this, _Money_currencyDef, currencyDef, "f");
@@ -253,9 +256,9 @@ export class Money {
      * Useful for loading from database (Stripe-style integer storage).
      */
     static fromSubunits(subunits, currency) {
-        const currencyDef = getCurrency(currency);
+        const currencyDef = (0, currency_js_1.getCurrency)(currency);
         if (!currencyDef) {
-            throw new CurrencyUnknownError(currency);
+            throw new errors_js_1.CurrencyUnknownError(currency);
         }
         const bigintSubunits = typeof subunits === 'number' ? BigInt(subunits) : subunits;
         return __classPrivateFieldGet(_a, _a, "m", _Money_createFromSubunits).call(_a, bigintSubunits, currency, currencyDef);
@@ -266,7 +269,7 @@ export class Money {
      */
     static compare(a, b) {
         if (a.currency !== b.currency) {
-            throw new CurrencyMismatchError(a.currency, b.currency);
+            throw new errors_js_1.CurrencyMismatchError(a.currency, b.currency);
         }
         const aVal = __classPrivateFieldGet(a, _Money_instances, "m", _Money_getInternalValue).call(a);
         const bVal = __classPrivateFieldGet(b, _Money_instances, "m", _Money_getInternalValue).call(b);
@@ -283,22 +286,23 @@ export class Money {
         return new _a(currency, '0');
     }
 }
+exports.Money = Money;
 _a = Money, _Money_subunits = new WeakMap(), _Money_currencyDef = new WeakMap(), _Money_instances = new WeakSet(), _Money_parseAmount = function _Money_parseAmount(amount) {
     const str = typeof amount === 'number' ? String(amount) : amount;
     const match = str.match(/^(-)?(\d+)(?:\.(\d+))?$/);
     if (!match) {
-        throw new AmountError(amount);
+        throw new errors_js_1.AmountError(amount);
     }
     const [, sign, whole, frac = ''] = match;
     if (frac.length > __classPrivateFieldGet(this, _Money_currencyDef, "f").decimalDigits) {
-        throw new SubunitError(this.currency, __classPrivateFieldGet(this, _Money_currencyDef, "f").decimalDigits);
+        throw new errors_js_1.SubunitError(this.currency, __classPrivateFieldGet(this, _Money_currencyDef, "f").decimalDigits);
     }
     const paddedFrac = frac.padEnd(__classPrivateFieldGet(this, _Money_currencyDef, "f").decimalDigits, '0');
     const combined = BigInt(whole + paddedFrac);
     return sign === '-' ? -combined : combined;
 }, _Money_assertSameCurrency = function _Money_assertSameCurrency(other) {
     if (this.currency !== other.currency) {
-        throw new CurrencyMismatchError(this.currency, other.currency);
+        throw new errors_js_1.CurrencyMismatchError(this.currency, other.currency);
     }
 }, _Money_getInternalValue = function _Money_getInternalValue() {
     return __classPrivateFieldGet(this, _Money_subunits, "f");

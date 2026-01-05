@@ -1,3 +1,4 @@
+"use strict";
 /**
  * Exchange Rate Service - Central authority for currency conversion rates.
  *
@@ -13,6 +14,8 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
     return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
 var _ExchangeRateService_instances, _ExchangeRateService_rates, _ExchangeRateService_key;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ExchangeRateService = void 0;
 /**
  * Service for managing exchange rates between currencies.
  *
@@ -21,7 +24,7 @@ var _ExchangeRateService_instances, _ExchangeRateService_rates, _ExchangeRateSer
  * rates.setRate('USD', 'EUR', 0.92, 'ECB')
  * rates.getRate('USD', 'EUR') // { from: 'USD', to: 'EUR', rate: '0.92', ... }
  */
-export class ExchangeRateService {
+class ExchangeRateService {
     constructor() {
         _ExchangeRateService_instances.add(this);
         _ExchangeRateService_rates.set(this, new Map()
@@ -165,6 +168,7 @@ export class ExchangeRateService {
         }
     }
 }
+exports.ExchangeRateService = ExchangeRateService;
 _ExchangeRateService_rates = new WeakMap(), _ExchangeRateService_instances = new WeakSet(), _ExchangeRateService_key = function _ExchangeRateService_key(from, to) {
     return `${from}:${to}`;
 };

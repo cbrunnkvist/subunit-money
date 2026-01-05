@@ -1,3 +1,4 @@
+"use strict";
 /**
  * Money Converter - Safe cross-currency operations.
  *
@@ -18,9 +19,11 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
     return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
 var _MoneyConverter_instances, _MoneyConverter_rateService, _MoneyConverter_bankersRound;
-import { Money } from './money.js';
-import { ExchangeRateError, CurrencyUnknownError } from './errors.js';
-import { getCurrency } from './currency.js';
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.MoneyConverter = void 0;
+const money_js_1 = require("./money.js");
+const errors_js_1 = require("./errors.js");
+const currency_js_1 = require("./currency.js");
 /**
  * Converter for performing operations between different currencies.
  *
@@ -32,7 +35,7 @@ import { getCurrency } from './currency.js';
  * const euros = converter.convert(new Money('USD', '100'), 'EUR')
  * console.log(euros.toString()) // "92.00 EUR"
  */
-export class MoneyConverter {
+class MoneyConverter {
     constructor(rateService) {
         _MoneyConverter_instances.add(this);
         _MoneyConverter_rateService.set(this, void 0);
@@ -50,15 +53,15 @@ export class MoneyConverter {
         if (money.currency === targetCurrency) {
             return money;
         }
-        const currencyDef = getCurrency(targetCurrency);
+        const currencyDef = (0, currency_js_1.getCurrency)(targetCurrency);
         if (!currencyDef) {
-            throw new CurrencyUnknownError(targetCurrency);
+            throw new errors_js_1.CurrencyUnknownError(targetCurrency);
         }
         const rate = __classPrivateFieldGet(this, _MoneyConverter_rateService, "f").getRate(money.currency, targetCurrency);
         if (!rate) {
-            throw new ExchangeRateError(money.currency, targetCurrency);
+            throw new errors_js_1.ExchangeRateError(money.currency, targetCurrency);
         }
-        const sourceCurrencyDef = getCurrency(money.currency);
+        const sourceCurrencyDef = (0, currency_js_1.getCurrency)(money.currency);
         const sourceSubunits = money.toSubunits();
         const sourceMultiplier = 10n ** BigInt(sourceCurrencyDef.decimalDigits);
         const targetMultiplier = 10n ** BigInt(currencyDef.decimalDigits);
@@ -69,7 +72,7 @@ export class MoneyConverter {
         const product = sourceSubunits * rateBigInt * targetMultiplier;
         const divisor = rateMultiplier * sourceMultiplier;
         const targetSubunits = __classPrivateFieldGet(this, _MoneyConverter_instances, "m", _MoneyConverter_bankersRound).call(this, product, divisor);
-        return Money.fromSubunits(targetSubunits, targetCurrency);
+        return money_js_1.Money.fromSubunits(targetSubunits, targetCurrency);
     }
     /**
      * Add two Money amounts, converting as needed.
@@ -118,7 +121,7 @@ export class MoneyConverter {
      * @returns Total in the target currency
      */
     sum(amounts, targetCurrency) {
-        let total = Money.zero(targetCurrency);
+        let total = money_js_1.Money.zero(targetCurrency);
         for (const amount of amounts) {
             const converted = this.convert(amount, targetCurrency);
             total = total.add(converted);
@@ -136,7 +139,7 @@ export class MoneyConverter {
     compare(a, b) {
         // Convert b to a's currency for comparison
         const bConverted = this.convert(b, a.currency);
-        return Money.compare(a, bConverted);
+        return money_js_1.Money.compare(a, bConverted);
     }
     /**
      * Get the exchange rate service (for direct rate access).
@@ -145,6 +148,7 @@ export class MoneyConverter {
         return __classPrivateFieldGet(this, _MoneyConverter_rateService, "f");
     }
 }
+exports.MoneyConverter = MoneyConverter;
 _MoneyConverter_rateService = new WeakMap(), _MoneyConverter_instances = new WeakSet(), _MoneyConverter_bankersRound = function _MoneyConverter_bankersRound(numerator, denominator) {
     if (denominator === 1n)
         return numerator;

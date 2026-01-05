@@ -18,7 +18,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && tsc --module commonjs --outDir dist/cjs",
     "test": "node --import tsx --test test/*.test.ts",
     "lint": "tsc --noEmit",
     "check-clean": "git diff --quiet && git diff --cached --quiet",
