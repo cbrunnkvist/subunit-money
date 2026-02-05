@@ -183,4 +183,22 @@ The dist/ folder IS tracked in git (removed from .gitignore on Jan 3, 2026). Whe
 - `index.d.ts` + `index.d.cts` - TypeScript definitions for both formats
 
 **Common Mistake:**
-Forgetting to commit dist/ after building. Always verify with `git status` that dist/ changes are staged before committing.
+ Forgetting to commit dist/ after building. Always verify with `git status` that dist/ changes are staged before committing.
+
+### Release Procedures (Feb 2026)
+
+**Where to Find Release Instructions:**
+All release procedures are documented in [MAINTAINERS.md](./MAINTAINERS.md). This includes:
+- How to create releases (patch/minor/major)
+- What happens during the npm lifecycle hooks
+- Distribution file commit workflow
+- Pre-release checklists
+
+**For Future Agents:**
+If asked to publish or release this library, **ALWAYS** consult MAINTAINERS.md first. The release process uses npm lifecycle scripts (`preversion`, `version`, `postversion`, `prepublishOnly`) and has specific requirements:
+1. Clean working directory required
+2. Tests must pass before version bump
+3. dist/ folder must be committed with source changes
+4. Version commits are separate from code changes
+
+Do NOT attempt to release without reading and understanding MAINTAINERS.md.
