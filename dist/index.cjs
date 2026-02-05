@@ -57,7 +57,7 @@ var CurrencyMismatchError = class _CurrencyMismatchError extends TypeError {
 };
 var CurrencyUnknownError = class _CurrencyUnknownError extends TypeError {
   constructor(currency) {
-    super(`Unknown currency '${currency}' - register it first with Money.registerCurrency()`);
+    super(`Unknown currency '${currency}' - register it first with registerCurrency()`);
     this.name = "CurrencyUnknownError";
     this.currency = currency;
     Error.captureStackTrace?.(this, _CurrencyUnknownError);
