@@ -186,7 +186,6 @@ Choose subunit-money if you:
 | Display formatting | View-layer concern | `Intl.NumberFormat` |
 | Advanced financial functions (NPV, IRR, amortization) | Out of scope for a value object | `financial`, `formulajs`, or big.js + your own math |
 | Custom rounding modes | Banker's rounding is correct for finance | Do arithmetic externally, construct Money from result |
-| 18-decimal precision | 8 decimals handles BTC; 18 is extreme edge case | Use decimal.js directly for ETH wei |
 
 ---
 

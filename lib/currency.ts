@@ -26,6 +26,9 @@ export function registerCurrency(code: string, decimalDigits: number, displayDec
  * Get a currency definition by code.
  * @returns The currency definition, or undefined if not registered
  */
+/**
+ * @internal
+ */
 export function getCurrency(code: string): CurrencyDefinition | undefined {
   return currencies.get(code)
 }
@@ -33,20 +36,22 @@ export function getCurrency(code: string): CurrencyDefinition | undefined {
 /**
  * Check if a currency is registered.
  */
+/**
+ * @internal
+ */
 export function hasCurrency(code: string): boolean {
   return currencies.has(code)
 }
 
 /**
- * Get all registered currencies, sorted by code.
+ * @internal
  */
 export function getAllCurrencies(): CurrencyDefinition[] {
   return Array.from(currencies.values()).sort((a, b) => a.code.localeCompare(b.code))
 }
 
 /**
- * Load currencies from the legacy currencymap.json format.
- * @param map - Object with currency codes as keys and {decimal_digits: number} as values
+ * @internal
  */
 export function loadCurrencyMap(map: Record<string, { decimal_digits: number }>): void {
   for (const [code, data] of Object.entries(map)) {
@@ -55,7 +60,7 @@ export function loadCurrencyMap(map: Record<string, { decimal_digits: number }>)
 }
 
 /**
- * Clear all registered currencies. Useful for testing.
+ * @internal
  */
 export function clearCurrencies(): void {
   currencies.clear()

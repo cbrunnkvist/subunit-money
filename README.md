@@ -39,7 +39,7 @@ This library uses BigInt internally to store currency in subunits (cents, satosh
 - **Immutable**: All operations return new instances
 - **Serialization-safe**: String amounts survive JSON/database round-trips
 - **Zero dependencies**: Just Node.js 18+
-- **Cryptocurrency ready**: Supports 8+ decimal places (Bitcoin, etc.)
+- **Cryptocurrency ready**: Supports arbitrary decimal places (tested up to 30 for XNO/Nano)
 
 ## Installation
 
@@ -92,6 +92,8 @@ const b = new Money('USD', '50.00')
 a.equalTo(b)     // false
 a.greaterThan(b) // true
 a.lessThan(b)    // false
+ a.greaterThanOrEqual(b) // true
+ a.lessThanOrEqual(b)    // false
 a.isZero()       // false
 a.isPositive()   // true
 a.isNegative()   // false
@@ -242,3 +244,18 @@ See **[CHOOSING-A-MONEY-LIBRARY.md](./CHOOSING-A-MONEY-LIBRARY.md)** for a detai
 ## License
 
 Copyright (c) 2016-2025 Conny Brunnkvist. Licensed under the [MIT License](./LICENSE)
+## Display Formatting
+
+The `displayAmount` property provides a display-friendly version of the amount:
+
+```typescript
+const money = new Money('USD', '100.00')
+money.amount        // "100.00" (full precision, use for storage/calculations)
+money.displayAmount // "100.00" (formatted for display, used by toString())
+```
+
+For most currencies, `amount` and `displayAmount` are identical. They differ when:
+- Custom `displayDecimals` is set via `registerCurrency()`
+- Trailing zeros are trimmed for cleaner display
+
+Use `amount` for data storage and precision-critical operations. Use `displayAmount` (or `toString()`) for user-facing output.
