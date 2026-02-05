@@ -67,6 +67,13 @@ npm publish
 - [ ] Package published to npm
 - [ ] Verify on npm: https://www.npmjs.com/package/subunit-money
 
+### Distribution Files (dist/)
+
+- The dist/ files are tracked in git.
+- They are committed together with source code changes as part of the same commit, not separately in version bumps.
+- A version bump commit only includes changes to package.json and package-lock.json; dist/ changes are included in the same commit as source changes.
+- This is the established workflow: commit dist/ changes whenever you commit source changes.
+
 ### Files Included in Package
 
 Per `package.json` `files` array:
